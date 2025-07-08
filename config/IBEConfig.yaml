@@ -1,0 +1,13 @@
+exp_descrip: Individual Base Extractor
+load_pretrain: ''
+gpu_ids: 0
+batch_size: 65536
+mini_batch_size: 512
+epoch: 50
+embed_dim: 256
+num_heads: 8
+ff_hidden_size: 1024
+num_layers: 3
+lr: 1.0e-3
+text_embed_dim: 768
+patient_info_size: 3

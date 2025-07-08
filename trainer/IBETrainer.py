@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from module.IBExtractor import IBExtractor
-from utils.data_utils import process_pat_info, PairedECGDataset
+from utils.data_utils import PairedECGDataset, process_pat_info, paired_ecg_collate_fn
 
 import os
 import yaml
@@ -28,8 +28,12 @@ def train_batch_with_accumulation(x_1, x_2, text_embed_1, text_embed_2, mask_1, 
         x_2_mini = x_2[start_idx:end_idx].to(device)
 
         # (B, L, 512)
-        embed_1_mini = text_embed_1[start_idx:end_idx].to(device)
-        embed_2_mini = text_embed_2[start_idx:end_idx].to(device)
+        if torch.rand(1) > 0.15:
+            embed_1_mini = text_embed_1[start_idx:end_idx].to(device)
+            embed_2_mini = text_embed_2[start_idx:end_idx].to(device)
+        else:
+            embed_1_mini = None
+            embed_2_mini = None
         
         # (B, L)
         mask_1_mini = mask_1[start_idx:end_idx].to(device)
@@ -74,10 +78,12 @@ def train_loop(dataloader, model, loss_fn, optimizer, device, accumulation_steps
 
         # (B, L)
         pat_info_1 = process_pat_info(hr=ecg_1['label']['hr'],
-                                    age=ecg_1['label']['age']) 
+                                    age=ecg_1['label']['age'],
+                                    sex=ecg_1['label']['sex']) 
     
         pat_info_2 = process_pat_info(hr=ecg_2['label']['hr'],
-                                    age=ecg_2['label']['age'])
+                                    age=ecg_2['label']['age'],
+                                    sex=ecg_2['label']['sex'])
         
         loss = train_batch_with_accumulation(x_1=ecg_1['data'].transpose(2, 1), 
                                              x_2=ecg_2['data'].transpose(2, 1), 
@@ -117,10 +123,12 @@ def eval_score(dataloader, model, device):
 
         # (B, L)
         pat_info_1 = process_pat_info(hr=ecg_1['label']['hr'],
-                                      age=ecg_1['label']['age']) 
+                                      age=ecg_1['label']['age'],
+                                      sex=ecg_1['label']['sex']) 
     
         pat_info_2 = process_pat_info(hr=ecg_2['label']['hr'],
-                                      age=ecg_2['label']['age'])
+                                      age=ecg_2['label']['age'],
+                                      sex=ecg_2['label']['sex'])
         pat_info_1 = pat_info_1.to(device)
         pat_info_2 = pat_info_2.to(device)
 
@@ -187,13 +195,13 @@ if __name__ == '__main__':
     logger.info(f'Using device: {device}')
 
     mimic_vae_path = './data/paired_Mimic_vae_multi_nomic.pt'
-    train_dataset = PairedECGDataset(mimic_vae_path, padding_length=17)
+    train_dataset = PairedECGDataset(mimic_vae_path)
     mimic_vae_test_path = './data/paired_Mimic_vae_multi_nomic_test.pt'
-    test_dataset = PairedECGDataset(mimic_vae_test_path, padding_length=17)
-    train_dataloader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True) 
-    test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=True)
+    test_dataset = PairedECGDataset(mimic_vae_test_path)
+    train_dataloader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, collate_fn=paired_ecg_collate_fn) 
+    test_dataloader = DataLoader(test_dataset, batch_size=256, shuffle=True, collate_fn=paired_ecg_collate_fn)
 
-    ibe_model = IBExtractor(embed_dim=config['embed_dim'], num_heads=config['num_heads'], ff_hidden_size=config['ff_hidden_size'], num_layers=config['num_layers'], text_embed_dim=config['text_embed_dim'], patient_info_size=2)
+    ibe_model = IBExtractor(embed_dim=config['embed_dim'], num_heads=config['num_heads'], ff_hidden_size=config['ff_hidden_size'], num_layers=config['num_layers'], text_embed_dim=config['text_embed_dim'], patient_info_size=config['patient_info_size'])
     ibe_model.to(device)
     if config['load_pretrain']:
         ibe_model_ckpt = torch.load(config['load_pretrain'], map_location=device)

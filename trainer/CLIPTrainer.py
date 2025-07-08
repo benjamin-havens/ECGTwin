@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 
 from module.clip_model import CLIP
 
-from utils.data_utils import ListDataset
+from utils.data_utils import ListDataset, ecg_collate_fn
 from module.vae_model import VAE_Decoder
 
 import os
@@ -151,12 +151,14 @@ if __name__ == '__main__':
     logger.info(f'Using device: {device}')
 
     mimic_vae_path = './data/Mimic_vae_multi_nomic.pt'
+    # mimic_vae_path = './data/PTBXL_vae_multi_nomic_test.pt'
     logger.info(f"Loading dataset: {mimic_vae_path} ...")
-    train_dataset = ListDataset(mimic_vae_path, padding_length=17)
-    train_dataloader = DataLoader(train_dataset, batch_size=H_['batch_size'], shuffle=True) 
+    train_dataset = ListDataset(mimic_vae_path)
+    train_dataloader = DataLoader(train_dataset, batch_size=H_['batch_size'], shuffle=True, collate_fn=ecg_collate_fn) 
     mimic_vae_path_test = './data/Mimic_vae_multi_nomic_test.pt'
-    test_dataset = ListDataset(mimic_vae_path_test, padding_length=17)
-    test_dataloader = DataLoader(test_dataset, batch_size=H_['mini_batch_size'], shuffle=True)
+    # mimic_vae_path_test = './data/PTBXL_vae_multi_nomic_test.pt'
+    test_dataset = ListDataset(mimic_vae_path_test)
+    test_dataloader = DataLoader(test_dataset, batch_size=H_['mini_batch_size'], shuffle=True, collate_fn=ecg_collate_fn)
     logger.info("done!")
     accum_steps = H_['batch_size'] // H_['mini_batch_size']
     assert accum_steps * H_['mini_batch_size'] == H_['batch_size']
@@ -172,7 +174,7 @@ if __name__ == '__main__':
     clip_model = CLIP(embed_dim=H_['embed_dim'])
 
     if H_['load_from_pretrain']:
-        pretrain_model_root = './checkpoints/clip_3/CLIP_model_ep12.pth'
+        pretrain_model_root = './checkpoints/clip_1/clip_best.pth'
         pretrain_model_weight = torch.load(pretrain_model_root, map_location=device)
         logger.info(f"Loading from {pretrain_model_root}")
         clip_model.load_state_dict(pretrain_model_weight)

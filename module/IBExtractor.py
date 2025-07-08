@@ -30,7 +30,7 @@ class IBEncoderLayer(nn.Module):
         self.layer_norm3 = nn.LayerNorm(embed_dim)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x, text_embed, mask, p):
+    def forward(self, x, c, mask):
         # x, text_embed, m: (B, L, dim)
         # p: (B, L_p, 1)
 
@@ -42,11 +42,7 @@ class IBEncoderLayer(nn.Module):
         # Cross-attention sublayer with residual connection and gating
         x1 = self.layer_norm2(x)
 
-        # c: (B, L_e + L_p, dim)
-        c = torch.concat([p, text_embed], dim=1)
         c = self.condition_norm(c)
-        if mask is not None:
-            mask = torch.concat([torch.ones(p.shape[0], p.shape[1], device=mask.device), mask], dim=1)
         attn_output = self.cross_attn(x1, c, c, mask, need_weights=False)[0]
         x = x - F.relu(self.dropout(attn_output))
 
@@ -58,13 +54,14 @@ class IBEncoderLayer(nn.Module):
         return x
 
 class IBExtractor(nn.Module):
-    def __init__(self, embed_dim=256, in_channel=4, num_heads=8, ff_hidden_size=1024, num_layers=3, dropout=0, text_embed_dim=768, patient_info_size=2):
+    def __init__(self, embed_dim=256, in_channel=4, num_heads=8, ff_hidden_size=1024, num_layers=3, dropout=0, text_embed_dim=768, patient_info_size=3):
         super(IBExtractor, self).__init__()
         self.embed_dim = embed_dim
         self.signal_embedding = nn.Linear(in_channel, embed_dim) 
         self.RoPE = RoPEEmbedder(dim=embed_dim)
-        self.p_embedding = PatientInfoEmbedder(patient_info_size, embed_dim, sex=False)
-        self.text_projector = nn.Linear(text_embed_dim, embed_dim)
+        # self.p_embedding = PatientInfoEmbedder(patient_info_size, embed_dim)
+        # self.text_projector = nn.Linear(text_embed_dim, embed_dim)
+        self.text_projector = nn.Linear(text_embed_dim + patient_info_size, embed_dim)
 
         self.layers = nn.ModuleList([
             IBEncoderLayer(embed_dim, num_heads, ff_hidden_size, dropout)
@@ -72,6 +69,36 @@ class IBExtractor(nn.Module):
         ])
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
 
+        self.classfree_emb = nn.Parameter(torch.ones([1, embed_dim]))
+
+
+    # def extract_features(self, x, text_embed, mask, p, reduce=True):
+    #     # Add positional encoding to input embeddings
+    #     # (B, L, C) -> (B, L, embed_dim)
+    #     x = self.signal_embedding(x)
+    #     x = self.RoPE(x)
+
+    #     # (B, L, text_embed_dim) -> (B, L, embed_dim)        
+    #     text_embed = self.text_projector(text_embed)
+
+    #     # (B, L) -> (B, L, embed_dim)
+    #     p = self.p_embedding(p)
+        
+    #     # c: (B, L_e + L_p, dim)
+    #     c = torch.concat([p, text_embed], dim=1)
+    #     if mask is not None:
+    #         mask = torch.concat([torch.ones(p.shape[0], p.shape[1], device=mask.device), mask], dim=1)
+
+    #     # Pass input through each transformer encoder layer
+    #     for layer in self.layers:
+    #         x = layer(x, c, mask)
+        
+    #     if reduce:
+    #         # (B, L, dim) -> (B, dim)
+    #         return x.mean(dim=1)
+    #     else:
+    #         # (B, L, dim)
+    #         return x
 
     def extract_features(self, x, text_embed, mask, p, reduce=True):
         # Add positional encoding to input embeddings
@@ -79,15 +106,22 @@ class IBExtractor(nn.Module):
         x = self.signal_embedding(x)
         x = self.RoPE(x)
 
-        # (B, L, text_embed_dim) -> (B, L, embed_dim)        
-        text_embed = self.text_projector(text_embed)
+        if text_embed is not None:
+            p = p.unsqueeze(1).repeat(1, text_embed.shape[1], 1)# (B, L, D)
+            # c: (B, L, text_embed_dim + pat_size)
+            c = torch.concat([text_embed, p], dim=-1)
 
-        # (B, L) -> (B, L, embed_dim)
-        p = self.p_embedding(p)
-        
+            # (B, L, text_embed_dim + pat_size) -> (B, L, embed_dim)        
+            c = self.text_projector(c)
+
+        else:
+            # When condition is not applied
+            c = self.classfree_emb.unsqueeze(0).repeat(x.shape[0], 1, 1)
+            mask = None
+
         # Pass input through each transformer encoder layer
         for layer in self.layers:
-            x = layer(x, text_embed, mask, p)
+            x = layer(x, c, mask)
         
         if reduce:
             # (B, L, dim) -> (B, dim)
@@ -124,6 +158,8 @@ if __name__ == "__main__":
     m1 = torch.ones((16, 5))
     m2 = torch.ones((16, 5))
 
+    # e1 = None
+    # e2 = None
     output = model(x1, e1, m1, p1, x2, e2, m2, p2)
     print(output[0].shape)
     total_params = sum(p.numel() for p in model.parameters())
