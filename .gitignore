@@ -198,3 +198,4 @@ exp/
 
 # figure
 *.pdf
+!figure/overview.png
