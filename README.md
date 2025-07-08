@@ -1,6 +1,6 @@
 # ECGTwin: Personalized ECG Generation Using Controllable Diffusion Model
 
-![!fig:overview.pdf](./figure/overview.pdf)
+![overview](./figure/overview.png)
 
 ## Quick Generation
 
