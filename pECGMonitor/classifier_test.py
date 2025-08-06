@@ -114,12 +114,12 @@ if __name__ == '__main__':
             trainset = ListDataset(path=trainset_path)
             trainloader = DataLoader(trainset, 256, shuffle=True)
 
-            # 3 Prepare training engine 1e-4
+            # 3 Prepare training engine 
             loss_fn = nn.CrossEntropyLoss()
             optimizer = torch.optim.AdamW(personal_model.parameters(), lr=1e-4, weight_decay=3e-4)
 
-            # 4 Finetuning 2 epoches
-            for t in range(1):
+            # 4 Finetuning 
+            for t in range(2):
                 epoch_train_loss = finetune_loop(trainloader, personal_model, loss_fn, optimizer, device, decoder=decoder)
         else:
             personal_model = clf_model

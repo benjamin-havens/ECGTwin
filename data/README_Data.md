@@ -1,14 +1,11 @@
 # Dataset Construction Tutorial
 
-**!! For anonymity, we remove all the huggingface url, please build the training datasets locally from [provided latent datasets](https://disk.pku.edu.cn/link/AA678AC9D624854EC2830F43F1B173BA73)**
-
 This tutorial tells the method to get following necessary training datasets:
 ```python
 ['paired_Mimic_vae_multi_nomic.pt''paired_Mimic_vae_multi_nomic_test.pt', 'paired_Mimic_vae_mix_nomic.pt', 'paired_Mimic_vae_mix_nomic_test.pt']
 ```
 
-They can also be directly downloaded from [huggingface repo](#) if you do not want to buld them locally.
-
+They can also be directly downloaded from [huggingface repo](https://huggingface.co/datasets/Laiyf/ECGTwin_Data/tree/main) if you do not want to buld them locally.
 
 ## STEP 0: Build from Original MIMIV-IV-ECG (Optional)
 
@@ -23,9 +20,7 @@ This step may take a long time.
 
 ## STEP 1: Get Text Embeddings
 
-**!! For anonymity, we remove all the huggingface url, please build the training datasets locally from [provided latent datasets](https://disk.pku.edu.cn/link/AA678AC9D624854EC2830F43F1B173BA73)**
-
-Prepare latent dataset `mimic_vae.pt` and `mimic_vae_test.pt` by downloading from [huggingface](#) or via STEP 0
+Prepare latent dataset `mimic_vae.pt` and `mimic_vae_test.pt` by downloading from [huggingface](https://huggingface.co/datasets/Laiyf/ECGTwin_Data/tree/main) or via STEP 0
 
 Change the `src` and `dst` variable in `store_embedding_nomic.py` and run the script to get `Mimic_vae_nomic.pt`, `Mimic_vae_multi_nomic.pt` from `Mimic_vae.pt` and get `Mimic_vae_nomic_test.pt`, `Mimic_vae_multi_nomic_test.pt` from `Mimic_vae_test.pt`:
 ```sh
@@ -45,3 +40,7 @@ python mix_dataset_construction.py
 ```
 
 Note that the `_mix` dataset is for the training of `_adaLN` models.
+
+## STEP 3: Get PTBXL Version Dataset
+
+Download PTBXL latent dataset `PTBXL_vae_test.pt` from [huggingface repo](https://huggingface.co/datasets/Laiyf/ECGTwin_Data/tree/main) and repeat STEP 1 to 2 with dataset name changing into PTBXL.
