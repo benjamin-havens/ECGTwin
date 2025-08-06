@@ -42,7 +42,7 @@ python -m trainer.ECGTwinTrainer config/DiT_ECGTwin.yaml
 ```
 You can change the type of config file to train different types of ECGTwin models and ablated models.
 
-📝 Citation
+## 📝 Citation
 
 If you find our work interesting and helpful, please consider giving our repo a star. Additionally, if you would like to cite our work, please use the following format:
 
