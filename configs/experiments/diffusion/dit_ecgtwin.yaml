@@ -1,0 +1,55 @@
+SYSTEM:
+  DEVICE: "cuda:2"
+
+PATHS:
+  DATA_ROOT: "data"
+  CHECKPOINTS_DIR: "checkpoints"
+  REFERENCE_SAMPLE: "data/prepared_input/normal_1.pt"
+
+DATA:
+  DATASET_PATH: "data/paired_Mimic_vae_multi_nomic.pt"
+
+MODEL:
+  NAME: "DiT_ECGTwin"
+  EXP_NAME: "DiT_ECGTwin"
+  DESCRIPTION: "DiT ECGTwin"
+  USE_VAE_LATENT: true
+  MIX_TEXT: false
+  DIT:
+    HIDDEN_SIZE: 256
+    DEPTH: 7
+    NUM_HEADS: 8
+    PATIENT_INFO_SIZE: 3
+  IBE:
+    EMBED_DIM: 256
+    NUM_HEADS: 8
+    FF_HIDDEN_SIZE: 1024
+    NUM_LAYERS: 3
+    TEXT_EMBED_DIM: 768
+    PATIENT_INFO_SIZE: 3
+
+DIFFUSION:
+  NUM_TRAIN_STEPS: 1000
+  BETA_START: 0.00085
+  BETA_END: 0.0120
+  INFERENCE_TIMESTEP: 1000
+
+TRAIN:
+  TASK: "diffusion"
+  EPOCHS: 30
+  BATCH_SIZE: 512
+  LR: 1.0e-4
+
+CHECKPOINTS:
+  NOISE_PREDICTOR_PATH: "checkpoints/ECGTwin_DiT.pth"
+  VAE_PATH: "checkpoints/vae_model.pth"
+  IBE_PATH: "checkpoints/ibe_model.pth"
+
+INFERENCE:
+  SAVE_SAMPLE_PATH: "generation_result"
+  GEN_BATCH: 50
+  HR: 70
+  AGE: 70
+  SEX: "F"
+  TEXT: "sinus rhythm|normal ecg."
+

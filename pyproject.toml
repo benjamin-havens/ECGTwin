@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecgtwin"
+version = "0.1.0"
+description = "ECGTwin training, inference, and data processing workflows."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "ECGTwin Authors" }
+]
+dependencies = [
+  "diffusers>=0.32.2",
+  "ecg-plot>=0.2.8",
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "PyYAML>=6.0",
+  "scipy>=1.11",
+  "torch>=2.1",
+  "tqdm>=4.65",
+  "transformers>=4.50",
+  "wfdb>=4.1",
+  "yacs>=0.1.8",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+ecgtwin = "ecgtwin.cli.main:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

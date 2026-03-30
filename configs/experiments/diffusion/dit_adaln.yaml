@@ -1,0 +1,50 @@
+SYSTEM:
+  DEVICE: "cuda:6"
+
+DATA:
+  DATASET_PATH: "data/paired_Mimic_vae_mix_nomic.pt"
+
+MODEL:
+  NAME: "DiT_adaLN"
+  EXP_NAME: "DiT_adaLN"
+  DESCRIPTION: "DiT AdaLN baseline"
+  USE_VAE_LATENT: true
+  MIX_TEXT: true
+  DIT:
+    HIDDEN_SIZE: 256
+    DEPTH: 7
+    NUM_HEADS: 8
+    PATIENT_INFO_SIZE: 3
+  IBE:
+    EMBED_DIM: 256
+    NUM_HEADS: 8
+    FF_HIDDEN_SIZE: 1024
+    NUM_LAYERS: 3
+    TEXT_EMBED_DIM: 768
+    PATIENT_INFO_SIZE: 3
+
+DIFFUSION:
+  NUM_TRAIN_STEPS: 1000
+  BETA_START: 0.00085
+  BETA_END: 0.0120
+  INFERENCE_TIMESTEP: 1000
+
+TRAIN:
+  TASK: "diffusion"
+  EPOCHS: 20
+  BATCH_SIZE: 512
+  LR: 1.0e-4
+
+CHECKPOINTS:
+  NOISE_PREDICTOR_PATH: "checkpoints/DiT_adaLN_1/DiT_adaLN_best.pth"
+  VAE_PATH: "checkpoints/vae_model.pth"
+  IBE_PATH: "checkpoints/ibe_model.pth"
+
+INFERENCE:
+  SAVE_SAMPLE_PATH: "test_samples"
+  GEN_BATCH: 10
+  HR: 60
+  AGE: 60
+  SEX: "F"
+  TEXT: "sinus bradycardia|premature ventricular complex|lead unsuitable for analysis: V6."
+

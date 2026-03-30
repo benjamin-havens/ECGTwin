@@ -1,0 +1,50 @@
+SYSTEM:
+  DEVICE: "cuda:6"
+
+DATA:
+  DATASET_PATH: "data/paired_Mimic_vae_multi_nomic.pt"
+
+MODEL:
+  NAME: "Unet_ECGTwin"
+  EXP_NAME: "Unet_ECGTwin"
+  DESCRIPTION: "UNet ECGTwin"
+  USE_VAE_LATENT: true
+  MIX_TEXT: false
+  UNET:
+    KERNEL_SIZE: 7
+    NUM_LEVEL: 6
+    N_HEADS: 8
+    PATIENT_INFO_SIZE: 3
+  IBE:
+    EMBED_DIM: 256
+    NUM_HEADS: 8
+    FF_HIDDEN_SIZE: 1024
+    NUM_LAYERS: 3
+    TEXT_EMBED_DIM: 768
+    PATIENT_INFO_SIZE: 3
+
+DIFFUSION:
+  NUM_TRAIN_STEPS: 1000
+  BETA_START: 0.00085
+  BETA_END: 0.0120
+  INFERENCE_TIMESTEP: 1000
+
+TRAIN:
+  TASK: "diffusion"
+  EPOCHS: 30
+  BATCH_SIZE: 1024
+  LR: 5.0e-4
+
+CHECKPOINTS:
+  NOISE_PREDICTOR_PATH: "checkpoints/ECGTwin_Unet.pth"
+  VAE_PATH: "checkpoints/vae_model.pth"
+  IBE_PATH: "checkpoints/ibe_model.pth"
+
+INFERENCE:
+  SAVE_SAMPLE_PATH: "generation_result"
+  GEN_BATCH: 10
+  HR: 80
+  AGE: 60
+  SEX: "F"
+  TEXT: "sinus rhythm|normal ecg."
+

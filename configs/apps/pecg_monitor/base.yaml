@@ -1,0 +1,53 @@
+SYSTEM:
+  DEVICE: "cuda:5"
+
+MODEL:
+  NAME: "DiT_ECGTwin"
+  MIX_TEXT: false
+  DIT:
+    HIDDEN_SIZE: 256
+    DEPTH: 7
+    NUM_HEADS: 8
+    PATIENT_INFO_SIZE: 3
+  IBE:
+    EMBED_DIM: 256
+    NUM_HEADS: 8
+    FF_HIDDEN_SIZE: 1024
+    NUM_LAYERS: 3
+    TEXT_EMBED_DIM: 768
+    PATIENT_INFO_SIZE: 3
+  CLIP:
+    NUM_CLASSES: 2
+    ECG_CHANNELS: 12
+
+DIFFUSION:
+  NUM_TRAIN_STEPS: 1000
+  BETA_START: 0.00085
+  BETA_END: 0.0120
+  INFERENCE_TIMESTEP: 1000
+
+TRAIN:
+  TASK: "pecg_monitor"
+  EPOCHS: 10
+  BATCH_SIZE: 256
+  MINI_BATCH_SIZE: 256
+  LR: 1.0e-3
+  LOAD_PRETRAIN: "outputs/pecg_monitor/clf_1/clf_best.pth"
+  CLASS_WEIGHT_POSITIVE: 2
+  IS_CMP: ""
+  WEIGHTED: true
+
+CHECKPOINTS:
+  NOISE_PREDICTOR_PATH: "checkpoints/ECGTwin_DiT.pth"
+  VAE_PATH: "checkpoints/vae_model.pth"
+  IBE_PATH: "checkpoints/ibe_model.pth"
+
+APPS:
+  PECG_MONITOR:
+    GPU_DEVICE: "cuda:1"
+    TEST_DATASET_PATH: "pECGMonitor/clf_data/clf_test_dataset.pt"
+    TRAIN_DATASET_PATH: "pECGMonitor/clf_data/poplvl_clf_train_dataset.pt"
+    VAL_DATASET_PATH: "pECGMonitor/clf_data/poplvl_clf_valid_dataset.pt"
+    TEST_CLASSIFIER_DATASET_PATH: "pECGMonitor/clf_data/poplvl_clf_test_dataset.pt"
+    GENERATION_SOURCE_PATH: "configs/apps/pecg_monitor/generation_source.yaml"
+    OUTPUT_DIR: "outputs/pecg_monitor"

@@ -1,0 +1,30 @@
+SYSTEM:
+  DEVICE: "cuda:0"
+
+DATA:
+  DATASET_PATH: "data/paired_Mimic_vae_multi_nomic.pt"
+  TEST_DATASET_PATH: "data/paired_Mimic_vae_multi_nomic_test.pt"
+
+MODEL:
+  NAME: "IBE"
+  EXP_NAME: "ibe"
+  IBE:
+    EMBED_DIM: 256
+    NUM_HEADS: 8
+    FF_HIDDEN_SIZE: 1024
+    NUM_LAYERS: 3
+    TEXT_EMBED_DIM: 768
+    PATIENT_INFO_SIZE: 3
+
+TRAIN:
+  TASK: "ibe"
+  EPOCHS: 50
+  BATCH_SIZE: 65536
+  MINI_BATCH_SIZE: 512
+  EVAL_BATCH_SIZE: 256
+  LR: 1.0e-3
+  LOAD_PRETRAIN: ""
+
+CHECKPOINTS:
+  IBE_PATH: "checkpoints/ibe_model.pth"
+

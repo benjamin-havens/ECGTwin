@@ -179,23 +179,14 @@ diffusetsp/
 *.csv
 !data/prepared_input/normal_1.pt
 
-# configurations
-config/*.yml
-config/*.yaml
-!config/DiT_ECGTwin.yaml
-!config/DiT_adaLN.yaml
-!config/DiT_ATTN.yaml
-!config/Unet_ECGTwin.yaml
-!config/IBEConfig.yaml
-
-
-# exp result
+# generated outputs
+outputs/
 exp/
-
-# Generate result
-*.png
 *.json
+*.png
 
-# figure
+# keep tracked configs
+!configs/
+!configs/**/*.yaml
+
 *.pdf
-!figure/overview.png

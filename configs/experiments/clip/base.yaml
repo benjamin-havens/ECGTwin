@@ -1,0 +1,25 @@
+SYSTEM:
+  DEVICE: "cuda:0"
+
+DATA:
+  DATASET_PATH: "data/Mimic_vae_multi_nomic.pt"
+  TEST_DATASET_PATH: "data/Mimic_vae_multi_nomic_test.pt"
+
+MODEL:
+  NAME: "CLIP"
+  EXP_NAME: "clip"
+  CLIP:
+    EMBED_DIM: 64
+
+TRAIN:
+  TASK: "clip"
+  EPOCHS: 20
+  BATCH_SIZE: 16384
+  MINI_BATCH_SIZE: 256
+  LR: 1.0e-3
+  LOAD_PRETRAIN: ""
+
+CHECKPOINTS:
+  VAE_PATH: "checkpoints/vae_model.pth"
+  CLIP_PATH: "checkpoints/clip_1/clip_best.pth"
+

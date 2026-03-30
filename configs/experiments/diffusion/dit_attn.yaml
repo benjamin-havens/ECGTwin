@@ -1,0 +1,50 @@
+SYSTEM:
+  DEVICE: "cuda:5"
+
+DATA:
+  DATASET_PATH: "data/paired_Mimic_vae_multi_nomic.pt"
+
+MODEL:
+  NAME: "DiT_ATTN"
+  EXP_NAME: "DiT_ATTN"
+  DESCRIPTION: "DiT attention baseline"
+  USE_VAE_LATENT: true
+  MIX_TEXT: false
+  DIT:
+    HIDDEN_SIZE: 256
+    DEPTH: 7
+    NUM_HEADS: 8
+    PATIENT_INFO_SIZE: 3
+  IBE:
+    EMBED_DIM: 256
+    NUM_HEADS: 8
+    FF_HIDDEN_SIZE: 1024
+    NUM_LAYERS: 3
+    TEXT_EMBED_DIM: 768
+    PATIENT_INFO_SIZE: 3
+
+DIFFUSION:
+  NUM_TRAIN_STEPS: 1000
+  BETA_START: 0.00085
+  BETA_END: 0.0120
+  INFERENCE_TIMESTEP: 1000
+
+TRAIN:
+  TASK: "diffusion"
+  EPOCHS: 30
+  BATCH_SIZE: 256
+  LR: 1.0e-4
+
+CHECKPOINTS:
+  NOISE_PREDICTOR_PATH: "checkpoints/DiT_ATTN_1/DiT_ATTN_best.pth"
+  VAE_PATH: "checkpoints/vae_model.pth"
+  IBE_PATH: "checkpoints/ibe_model.pth"
+
+INFERENCE:
+  SAVE_SAMPLE_PATH: "test_samples"
+  GEN_BATCH: 10
+  HR: 60
+  AGE: 60
+  SEX: "F"
+  TEXT: "sinus bradycardia|premature ventricular complex|lead unsuitable for analysis: V6."
+

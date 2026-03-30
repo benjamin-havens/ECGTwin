@@ -1,56 +1,74 @@
-# ECGTwin: Personalized ECG Generation Using Controllable Diffusion Model
+# ECGTwin
 
-![overview](./figure/overview.png)
+ECGTwin is now structured as an installable `src`-layout Python package with config-driven training, inference, preprocessing, and `pECGMonitor` workflows.
 
-## 🚩 News
+## Install
 
-- [2025-08] Our paper has been released on [arXiv](https://arxiv.org/abs/2508.02720)!
+Create the environment you prefer, then install the package in editable mode:
 
-## 🚀 Quick Generation
-
-1. Build environment from `environment.yml`
-
-2. Download pre-trained model weights from [here](https://huggingface.co/Laiyf/ECGTwin)
-
-3. Move the downloaded `checkpoints` folder to directly under this repo's root:
 ```sh
-mv /path/to/download/checkpoints ./checkpoints
+pip install -e .
 ```
 
-4. Perform personalized ECG generation through: 
+For CUDA/conda setups, `environment.yml` remains available as a convenience environment definition.
+
+## Project Layout
+
+- `src/ecgtwin/`: supported application code
+- `configs/`: YACS configuration files
+- `docs/`: operational documentation
+- `research/`: notebooks and ad hoc research scripts
+- `data/`: runtime data assets and local datasets
+
+## Common Commands
+
+Train the diffusion model:
+
 ```sh
-python ECGTwin_inference.py config/DiT_ECGTwin.yaml
+ecgtwin train-diffusion --config configs/experiments/diffusion/dit_ecgtwin.yaml
 ```
 
-Note that the reference ECG and cardiac condition are provided at `data/prepared_input`, which is stored via scripts in '## Reference Data Selection'. It is particularly encouraged to replace the reference ECG and cardiac condition with your own data.
+Run inference:
 
-## ⚙️ ECGTwin Training
-
-1. Following the tutorial in `data/README_Data` or download processed training data from [huggingface repo](https://huggingface.co/datasets/Laiyf/ECGTwin_Data/tree/main). 
-
-2. Move the training data into `data` folder
-
-3. (Optional) Train Individual Base Extractor by:
 ```sh
-python -m trainer.IBETrainer config/IBEConfig.yaml
+ecgtwin infer --config configs/experiments/diffusion/dit_ecgtwin.yaml
 ```
-Notice: A pre-trained IBExtractor is provided at 
 
-4. Train Individual Base Extractor by:
+Train the IBE model:
+
 ```sh
-python -m trainer.ECGTwinTrainer config/DiT_ECGTwin.yaml
+ecgtwin train-ibe --config configs/experiments/ibe/base.yaml
 ```
-You can change the type of config file to train different types of ECGTwin models and ablated models.
 
-## 📝 Citation
+Train the CLIP model:
 
-If you find our work interesting and helpful, please consider giving our repo a star. Additionally, if you would like to cite our work, please use the following format:
-
+```sh
+ecgtwin train-clip --config configs/experiments/clip/base.yaml
 ```
-@article{ECGTwin,
-      title={ECGTwin: Personalized ECG Generation Using Controllable Diffusion Model}, 
-      author={Yongfan Lai and Bo Liu and Xinyan Guan and Qinghao Zhao and Hongyan Li and Shenda Hong},
-      journal={preprint at arXiv},
-      year={2025}
-}
+
+Run `pECGMonitor` generation:
+
+```sh
+ecgtwin pecg-monitor-generate --config configs/apps/pecg_monitor/base.yaml
 ```
+
+All commands accept YACS-style overrides after the config path, for example:
+
+```sh
+ecgtwin train-diffusion --config configs/experiments/diffusion/dit_ecgtwin.yaml SYSTEM.DEVICE cpu TRAIN.BATCH_SIZE 8
+```
+
+## Data Notes
+
+- Dataset preparation guidance lives in `docs/mimic_data.md`.
+- Runtime paths, checkpoint locations, and tunable settings are centralized in config files instead of being hardcoded in scripts.
+
+## Documentation
+
+- `docs/README.md`: index of the documentation set
+- `docs/architecture.md`: package boundaries and workflow map
+- `docs/cli.md`: supported command reference
+- `docs/configuration.md`: YACS config tree and override patterns
+- `docs/development.md`: maintenance and contribution notes
+- `configs/README.md`: config layout guide
+- `research/README.md`: what is considered exploratory vs supported
