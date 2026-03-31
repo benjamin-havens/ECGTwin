@@ -190,3 +190,4 @@ exp/
 !configs/**/*.yaml
 
 *.pdf
+configs/local/**

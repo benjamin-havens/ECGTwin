@@ -7,14 +7,10 @@ DATA:
 
 MODEL:
   NAME: "IBE"
-  EXP_NAME: "ibe"
-  IBE:
-    EMBED_DIM: 256
-    NUM_HEADS: 8
-    FF_HIDDEN_SIZE: 1024
-    NUM_LAYERS: 3
-    TEXT_EMBED_DIM: 768
-    PATIENT_INFO_SIZE: 3
+  EXP_NAME: "ibe_bottleneck"
+  BASE_VECTOR:
+    MODE: "bottleneck"
+    BOTTLENECK_DIM: 64
 
 TRAIN:
   TASK: "ibe"
@@ -24,6 +20,3 @@ TRAIN:
   EVAL_BATCH_SIZE: 256
   LR: 1.0e-3
   LOAD_PRETRAIN: ""
-
-CHECKPOINTS:
-  IBE_PATH: "checkpoints/ibe_model.pth"

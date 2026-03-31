@@ -9,7 +9,7 @@ from sklearn.metrics import auc, confusion_matrix, f1_score, roc_curve
 from torch.utils.data import DataLoader
 
 from ecgtwin.apps.pecg_monitor.classifier import ResNetECG
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.core.logging import configure_logger
 from ecgtwin.data.datasets import ListDataset
 from ecgtwin.models.vae_model import VAE_Decoder
@@ -132,9 +132,9 @@ def run(config_path, overrides):
     logger = configure_logger("pecg-monitor-clf", save_dir / "train.log")
     logger.info(cfg.dump())
 
-    train_dataset = ListDataset(cfg.APPS.PECG_MONITOR.TRAIN_DATASET_PATH)
-    vali_dataset = ListDataset(cfg.APPS.PECG_MONITOR.VAL_DATASET_PATH)
-    test_dataset = ListDataset(cfg.APPS.PECG_MONITOR.TEST_CLASSIFIER_DATASET_PATH)
+    train_dataset = ListDataset(str(resolve_serialized_data_path(cfg, cfg.APPS.PECG_MONITOR.TRAIN_DATASET_PATH)))
+    vali_dataset = ListDataset(str(resolve_serialized_data_path(cfg, cfg.APPS.PECG_MONITOR.VAL_DATASET_PATH)))
+    test_dataset = ListDataset(str(resolve_serialized_data_path(cfg, cfg.APPS.PECG_MONITOR.TEST_CLASSIFIER_DATASET_PATH)))
     train_dataloader = DataLoader(train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.DATA.SHUFFLE)
     vali_dataloader = DataLoader(vali_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.DATA.SHUFFLE)
     test_dataloader = DataLoader(test_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.DATA.SHUFFLE)

@@ -7,7 +7,7 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 
 
 def build_pair_dataset(src_path: str, dst_path: str):
@@ -37,7 +37,11 @@ def build_pair_dataset(src_path: str, dst_path: str):
 def run(config_path, overrides):
     """Execute dataset pairing from config."""
     cfg = load_config(config_path, overrides)
-    src_path = cfg.DATA.DATASET_PATH
-    dst_path = cfg.DATA.TRAIN_DATASET_PATH or str(Path(cfg.PATHS.OUTPUT_DIR) / f"paired_{Path(src_path).name}")
+    src_path = str(resolve_serialized_data_path(cfg, cfg.DATA.DATASET_PATH))
+    dst_path = (
+        str(resolve_serialized_data_path(cfg, cfg.DATA.TRAIN_DATASET_PATH))
+        if cfg.DATA.TRAIN_DATASET_PATH
+        else str(Path(cfg.PATHS.OUTPUT_DIR) / f"paired_{Path(src_path).name}")
+    )
     Path(dst_path).parent.mkdir(parents=True, exist_ok=True)
     build_pair_dataset(src_path, dst_path)

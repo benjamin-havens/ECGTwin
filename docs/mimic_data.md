@@ -22,7 +22,7 @@ The key config entries are usually:
 - `DATA.DATASET_PATH`
 - `DATA.TRAIN_DATASET_PATH`
 - `DATA.TEST_DATASET_PATH`
-- `PATHS.DATA_ROOT`
+- `PATHS.SERIALIZED_DATA_ROOT`
 
 ## Option 2: Build Locally
 
@@ -51,8 +51,9 @@ Once the latent dataset exists, add text embeddings:
 
 ```sh
 ecgtwin preprocess-embed --config configs/experiments/diffusion/dit_ecgtwin.yaml \
-  DATA.DATASET_PATH data/Mimic_vae.pt \
-  DATA.TRAIN_DATASET_PATH data/Mimic_vae_multi_nomic.pt
+  PATHS.SERIALIZED_DATA_ROOT /data/users/havens3/ecgtwin \
+  DATA.DATASET_PATH Mimic_vae.pt \
+  DATA.TRAIN_DATASET_PATH Mimic_vae_multi_nomic.pt
 ```
 
 If you want whole-report mixed embeddings instead of split diagnosis embeddings, set:
@@ -67,20 +68,22 @@ Build chronologically ordered subject pairs:
 
 ```sh
 ecgtwin preprocess-pair --config configs/experiments/diffusion/dit_ecgtwin.yaml \
-  DATA.DATASET_PATH data/Mimic_vae_multi_nomic.pt \
-  DATA.TRAIN_DATASET_PATH data/paired_Mimic_vae_multi_nomic.pt
+  PATHS.SERIALIZED_DATA_ROOT /data/users/havens3/ecgtwin \
+  DATA.DATASET_PATH Mimic_vae_multi_nomic.pt \
+  DATA.TRAIN_DATASET_PATH paired_Mimic_vae_multi_nomic.pt
 ```
 
 For mixed-text paired datasets used by the adaLN-style experiments:
 
 ```sh
 ecgtwin preprocess-pair --config configs/experiments/diffusion/dit_adaln.yaml \
-  DATA.DATASET_PATH data/Mimic_vae_mix_nomic.pt \
-  DATA.TRAIN_DATASET_PATH data/paired_Mimic_vae_mix_nomic.pt
+  PATHS.SERIALIZED_DATA_ROOT /data/users/havens3/ecgtwin \
+  DATA.DATASET_PATH Mimic_vae_mix_nomic.pt \
+  DATA.TRAIN_DATASET_PATH paired_Mimic_vae_mix_nomic.pt
 ```
 
 ## Operational Notes
 
 - The raw-data adapters expect the exclusion list at `data/exclude_list.txt` unless you override `PATHS.EXCLUDE_LIST`.
-- Paths in the repo configs are examples; in practice, most users will override them for their local storage layout.
+- Serialized dataset filenames are typically short relative names; the shared base directory is controlled once via `PATHS.SERIALIZED_DATA_ROOT`.
 - Preprocessing outputs are regular serialized tensor datasets, so it is normal to keep them outside version control.

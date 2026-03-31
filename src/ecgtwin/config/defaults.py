@@ -16,6 +16,7 @@ def get_cfg_defaults():
 
     cfg.PATHS = CN()
     cfg.PATHS.DATA_ROOT = "data"
+    cfg.PATHS.SERIALIZED_DATA_ROOT = "/data/users/havens3/ecgtwin"
     cfg.PATHS.CHECKPOINTS_DIR = "checkpoints"
     cfg.PATHS.OUTPUT_DIR = "outputs"
     cfg.PATHS.MIMIC_ROOT = "/path/to/mimic-iv-ecg-diagnostic-electrocardiogram-matched-subset-1.0"
@@ -24,7 +25,7 @@ def get_cfg_defaults():
     cfg.PATHS.REFERENCE_SAMPLE = "data/prepared_input/normal_1.pt"
 
     cfg.DATA = CN()
-    cfg.DATA.DATASET_PATH = "data/paired_Mimic_vae_multi_nomic.pt"
+    cfg.DATA.DATASET_PATH = "paired_Mimic_vae_multi_nomic.pt"
     cfg.DATA.TRAIN_DATASET_PATH = ""
     cfg.DATA.VAL_DATASET_PATH = ""
     cfg.DATA.TEST_DATASET_PATH = ""
@@ -62,6 +63,13 @@ def get_cfg_defaults():
     cfg.MODEL.IBE.TEXT_EMBED_DIM = 768
     cfg.MODEL.IBE.PATIENT_INFO_SIZE = 3
 
+    cfg.MODEL.BASE_VECTOR = CN()
+    cfg.MODEL.BASE_VECTOR.MODE = "standard"
+    cfg.MODEL.BASE_VECTOR.NOISE_STD = 0.1
+    cfg.MODEL.BASE_VECTOR.BOTTLENECK_DIM = 256
+    cfg.MODEL.BASE_VECTOR.MASK_PROB = 0.15
+    cfg.MODEL.BASE_VECTOR.APPLY_AT_INFERENCE = False
+
     cfg.MODEL.CLIP = CN()
     cfg.MODEL.CLIP.EMBED_DIM = 64
     cfg.MODEL.CLIP.NUM_CLASSES = 2
@@ -72,6 +80,7 @@ def get_cfg_defaults():
     cfg.DIFFUSION.BETA_START = 0.00085
     cfg.DIFFUSION.BETA_END = 0.0120
     cfg.DIFFUSION.INFERENCE_TIMESTEP = 1000
+    cfg.DIFFUSION.SAMPLER = "ddpm"
 
     cfg.TRAIN = CN()
     cfg.TRAIN.TASK = "diffusion"
@@ -112,5 +121,47 @@ def get_cfg_defaults():
     cfg.APPS.PECG_MONITOR.GENERATION_SOURCE_PATH = "configs/apps/pecg_monitor/generation_source.yaml"
     cfg.APPS.PECG_MONITOR.OUTPUT_DIR = "outputs/pecg_monitor"
     cfg.APPS.PECG_MONITOR.GPU_DEVICE = "cuda:1"
+
+    cfg.PRIVACY = CN()
+    cfg.PRIVACY.EXP_NAME = "privacy_audit"
+    cfg.PRIVACY.OUTPUT_DIR = "outputs/privacy"
+    cfg.PRIVACY.MEMBER_DATASET_PATH = ""
+    cfg.PRIVACY.NONMEMBER_DATASET_PATH = ""
+    cfg.PRIVACY.SYNTHETIC_DIR = ""
+    cfg.PRIVACY.LEVELS = ["patient", "record"]
+    cfg.PRIVACY.FEATURE_SPACE = "latent"
+    cfg.PRIVACY.MAX_PATIENTS = 0
+    cfg.PRIVACY.MAX_RECORDS_PER_PATIENT = 0
+    cfg.PRIVACY.RANDOM_SEED = 42
+    cfg.PRIVACY.SYNTHETIC_NUM_SAMPLES = 32
+    cfg.PRIVACY.SYNTHETIC_BATCH_SIZE = 32
+    cfg.PRIVACY.GPU_IDS = []
+    cfg.PRIVACY.WORKER_CHUNK_SIZE = 2048
+    cfg.PRIVACY.PROGRESS_BAR = True
+    cfg.PRIVACY.PRELOAD_DATASETS = False
+    cfg.PRIVACY.USE_AMP = False
+    cfg.PRIVACY.PLOTS = True
+
+    cfg.PRIVACY.BLACK_BOX = CN()
+    cfg.PRIVACY.BLACK_BOX.KNN_K = 5
+    cfg.PRIVACY.BLACK_BOX.DISTANCE = "l2"
+    cfg.PRIVACY.BLACK_BOX.AGGREGATION = "max"
+
+    cfg.PRIVACY.WHITE_BOX = CN()
+    cfg.PRIVACY.WHITE_BOX.TIMESTEPS = [1, 50, 100, 250, 500, 750, 999]
+    cfg.PRIVACY.WHITE_BOX.DISTANCE = "l2"
+    cfg.PRIVACY.WHITE_BOX.AGGREGATION = "max"
+
+    cfg.PRIVACY.DOMIAS = CN()
+    cfg.PRIVACY.DOMIAS.KNN_K = 5
+    cfg.PRIVACY.DOMIAS.REFERENCE_SPLIT = 0.5
+    cfg.PRIVACY.DOMIAS.AGGREGATION = "max"
+
+    cfg.PRIVACY.RECONSTRUCTION = CN()
+    cfg.PRIVACY.RECONSTRUCTION.ENABLED = True
+    cfg.PRIVACY.RECONSTRUCTION.DISTANCE = "l2"
+    cfg.PRIVACY.RECONSTRUCTION.AGGREGATION = "max"
+    cfg.PRIVACY.RECONSTRUCTION.SAVE_EXAMPLE_COUNT_PER_LABEL = 8
+    cfg.PRIVACY.RECONSTRUCTION.DECODE_EXAMPLES = True
 
     return cfg

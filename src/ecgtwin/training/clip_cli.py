@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.core.logging import configure_logger
 from ecgtwin.data.collate import ecg_collate_fn
 from ecgtwin.data.datasets import ListDataset
@@ -96,8 +96,8 @@ def run(config_path, overrides):
     logger.info(cfg.dump())
 
     device = torch.device(cfg.SYSTEM.DEVICE if torch.cuda.is_available() else "cpu")
-    train_dataset = ListDataset(cfg.DATA.DATASET_PATH)
-    test_dataset = ListDataset(cfg.DATA.TEST_DATASET_PATH or cfg.DATA.DATASET_PATH)
+    train_dataset = ListDataset(str(resolve_serialized_data_path(cfg, cfg.DATA.DATASET_PATH)))
+    test_dataset = ListDataset(str(resolve_serialized_data_path(cfg, cfg.DATA.TEST_DATASET_PATH or cfg.DATA.DATASET_PATH)))
     train_dataloader = DataLoader(train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=cfg.DATA.SHUFFLE, collate_fn=ecg_collate_fn)
     test_dataloader = DataLoader(test_dataset, batch_size=cfg.TRAIN.MINI_BATCH_SIZE, shuffle=cfg.DATA.SHUFFLE, collate_fn=ecg_collate_fn)
 

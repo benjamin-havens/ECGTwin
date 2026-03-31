@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 
 from ecgtwin.data.patient import build_patient_info_tensor
+from ecgtwin.models.base_vector import apply_base_vector_ablation, apply_random_feature_mask
 
 
 def train_epoch_channels(
@@ -18,6 +19,9 @@ def train_epoch_channels(
     scheduler,
     device,
     mix,
+    base_vector_mode,
+    base_vector_noise_std,
+    base_vector_mask_prob,
     decoder=None,
     number_of_repetition=1,
     use_recons_loss=False,
@@ -45,9 +49,12 @@ def train_epoch_channels(
                     pat_info_ref,
                     reduce=True,
                 )
-
-            base_vector_mask = (torch.rand(1, base_vector.shape[1]) > 0.15).float().to(device)
-            base_vector = base_vector * base_vector_mask
+                base_vector = apply_base_vector_ablation(
+                    base_vector,
+                    mode=base_vector_mode,
+                    noise_std=base_vector_noise_std,
+                )
+                base_vector = apply_random_feature_mask(base_vector, mask_prob=base_vector_mask_prob)
 
             if mix:
                 text_embed_tar = ecg_tar["label"]["text_embed_whole"].unsqueeze(1).to(device, dtype=torch.float32)
@@ -90,7 +97,17 @@ def train_epoch_channels(
     return sum(loss_list) / len(loss_list)
 
 
-def train_diffusion_model(meta, save_weights_path, dataloader, diffused_model, ibe_model, noise_predictor, h_, logger, decoder=None):
+def train_diffusion_model(
+    meta,
+    save_weights_path,
+    dataloader,
+    diffused_model,
+    ibe_model,
+    noise_predictor,
+    h_,
+    logger,
+    decoder=None,
+):
     """Train a diffusion model and emit checkpoints/logs to the experiment directory."""
     device = torch.device(meta["device"] if torch.cuda.is_available() else "cpu")
     noise_predictor.to(device)
@@ -121,6 +138,9 @@ def train_diffusion_model(meta, save_weights_path, dataloader, diffused_model, i
             scheduler=scheduler,
             device=device,
             mix=meta["mix"],
+            base_vector_mode=meta["base_vector_mode"],
+            base_vector_noise_std=meta["base_vector_noise_std"],
+            base_vector_mask_prob=meta["base_vector_mask_prob"],
             decoder=decoder,
             number_of_repetition=1,
         )

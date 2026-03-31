@@ -9,6 +9,7 @@ import torch
 from ecgtwin.data.patient import build_patient_info_tensor, sex_to_binary
 from ecgtwin.data.text_embeddings import get_text_embedding
 from ecgtwin.inference.rendering import save_ecg_plot
+from ecgtwin.models.base_vector import apply_base_vector_ablation
 
 
 def find_power_of_ten(number):
@@ -54,6 +55,9 @@ def generate_ecg(
     embedding_model,
     device,
     mix,
+    base_vector_mode="standard",
+    base_vector_noise_std=0.0,
+    apply_base_vector_ablation_at_inference=False,
 ):
     """Generate ECG outputs, save tensors, and render ECG plots for inspection."""
     save_sample_path = Path(prerequisites["tar"]["save_sample_path"])
@@ -88,6 +92,12 @@ def generate_ecg(
     text_embed_ref = prerequisites["ref"]["text_embed"].unsqueeze(0).repeat(batch, 1, 1).to(device)
     latent_ref = prerequisites["ref_latent"].unsqueeze(0).repeat(batch, 1, 1).transpose(2, 1).to(device)
     base_vector = ibe_model.extract_features(latent_ref, text_embed_ref, None, pat_info_ref, reduce=True)
+    if apply_base_vector_ablation_at_inference:
+        base_vector = apply_base_vector_ablation(
+            base_vector,
+            mode=base_vector_mode,
+            noise_std=base_vector_noise_std,
+        )
 
     text_embed_tar = get_text_embedding(
         text=prerequisites["tar"]["text"],

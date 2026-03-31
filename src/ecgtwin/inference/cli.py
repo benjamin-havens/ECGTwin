@@ -1,9 +1,9 @@
 import torch
-from diffusers import DDPMScheduler
 from transformers import AutoModel, AutoTokenizer
 
 from ecgtwin.config import load_config
 from ecgtwin.inference.generation import generate_ecg
+from ecgtwin.inference.scheduler import build_inference_scheduler
 from ecgtwin.models.factory import build_noise_predictor
 from ecgtwin.models.ib_extractor import IBExtractor
 from ecgtwin.models.vae_model import VAE_Decoder
@@ -53,12 +53,7 @@ def run(config_path, overrides):
     noise_predictor.to(device)
     noise_predictor.eval()
 
-    diffused_model = DDPMScheduler(
-        num_train_timesteps=cfg.DIFFUSION.NUM_TRAIN_STEPS,
-        beta_start=cfg.DIFFUSION.BETA_START,
-        beta_end=cfg.DIFFUSION.BETA_END,
-    )
-    diffused_model.set_timesteps(cfg.DIFFUSION.INFERENCE_TIMESTEP)
+    diffused_model = build_inference_scheduler(cfg)
 
     ibe_model = IBExtractor(
         embed_dim=cfg.MODEL.IBE.EMBED_DIM,
@@ -67,6 +62,8 @@ def run(config_path, overrides):
         num_layers=cfg.MODEL.IBE.NUM_LAYERS,
         text_embed_dim=cfg.MODEL.IBE.TEXT_EMBED_DIM,
         patient_info_size=cfg.MODEL.IBE.PATIENT_INFO_SIZE,
+        base_vector_mode=cfg.MODEL.BASE_VECTOR.MODE,
+        base_vector_bottleneck_dim=cfg.MODEL.BASE_VECTOR.BOTTLENECK_DIM,
     )
     ibe_model.load_state_dict(torch.load(cfg.CHECKPOINTS.IBE_PATH, map_location="cpu"))
     ibe_model.to(device)
@@ -111,4 +108,7 @@ def run(config_path, overrides):
         embedding_model=embedding_model,
         device=device,
         mix=cfg.MODEL.MIX_TEXT,
+        base_vector_mode=cfg.MODEL.BASE_VECTOR.MODE,
+        base_vector_noise_std=cfg.MODEL.BASE_VECTOR.NOISE_STD,
+        apply_base_vector_ablation_at_inference=cfg.MODEL.BASE_VECTOR.APPLY_AT_INFERENCE,
     )

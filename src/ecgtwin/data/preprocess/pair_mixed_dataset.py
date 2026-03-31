@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 from tqdm import tqdm
 
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.data.preprocess.pair_dataset import build_pair_dataset
 from ecgtwin.data.text_embeddings import mean_pooling, prompt_process
 
@@ -39,8 +39,17 @@ def run(config_path, overrides):
     """Execute mixed-text dataset preparation from config."""
     cfg = load_config(config_path, overrides)
     device = cfg.SYSTEM.DEVICE if torch.cuda.is_available() else "cpu"
-    mixed_path = cfg.DATA.TRAIN_DATASET_PATH or str(Path(cfg.PATHS.OUTPUT_DIR) / "mixed_with_whole_embeddings.pt")
-    paired_path = cfg.DATA.TEST_DATASET_PATH or str(Path(cfg.PATHS.OUTPUT_DIR) / "paired_mixed.pt")
+    mixed_path = (
+        str(resolve_serialized_data_path(cfg, cfg.DATA.TRAIN_DATASET_PATH))
+        if cfg.DATA.TRAIN_DATASET_PATH
+        else str(Path(cfg.PATHS.OUTPUT_DIR) / "mixed_with_whole_embeddings.pt")
+    )
+    paired_path = (
+        str(resolve_serialized_data_path(cfg, cfg.DATA.TEST_DATASET_PATH))
+        if cfg.DATA.TEST_DATASET_PATH
+        else str(Path(cfg.PATHS.OUTPUT_DIR) / "paired_mixed.pt")
+    )
     Path(mixed_path).parent.mkdir(parents=True, exist_ok=True)
-    store_whole_embeddings(cfg.DATA.DATASET_PATH, mixed_path, device)
+    Path(paired_path).parent.mkdir(parents=True, exist_ok=True)
+    store_whole_embeddings(str(resolve_serialized_data_path(cfg, cfg.DATA.DATASET_PATH)), mixed_path, device)
     build_pair_dataset(mixed_path, paired_path)

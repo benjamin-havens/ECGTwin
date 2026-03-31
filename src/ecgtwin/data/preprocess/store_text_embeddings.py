@@ -6,7 +6,7 @@ import torch
 from transformers import AutoModel, AutoTokenizer
 from tqdm import tqdm
 
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.data.text_embeddings import get_text_embedding
 
 
@@ -35,8 +35,12 @@ def store_split_embedding_to_dataset(src: str, dst: str, tokenizer, model):
 def run(config_path, overrides):
     """Execute text-embedding preprocessing from config."""
     cfg = load_config(config_path, overrides)
-    src = cfg.DATA.DATASET_PATH
-    dst = cfg.DATA.TRAIN_DATASET_PATH or str(Path(cfg.PATHS.OUTPUT_DIR) / f"embedded_{Path(src).name}")
+    src = str(resolve_serialized_data_path(cfg, cfg.DATA.DATASET_PATH))
+    dst = (
+        str(resolve_serialized_data_path(cfg, cfg.DATA.TRAIN_DATASET_PATH))
+        if cfg.DATA.TRAIN_DATASET_PATH
+        else str(Path(cfg.PATHS.OUTPUT_DIR) / f"embedded_{Path(src).name}")
+    )
     Path(dst).parent.mkdir(parents=True, exist_ok=True)
     device = cfg.SYSTEM.DEVICE if torch.cuda.is_available() else "cpu"
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")

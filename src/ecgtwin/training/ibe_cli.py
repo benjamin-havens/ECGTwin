@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.core.logging import configure_logger
 from ecgtwin.data.collate import paired_ecg_collate_fn
 from ecgtwin.data.datasets import PairedECGDataset
@@ -173,8 +173,8 @@ def run(config_path, overrides):
     logger = configure_logger("ibe", save_dir / "train.log")
     logger.info(cfg.dump())
 
-    train_dataset = PairedECGDataset(cfg.DATA.DATASET_PATH)
-    test_dataset = PairedECGDataset(cfg.DATA.TEST_DATASET_PATH or cfg.DATA.DATASET_PATH)
+    train_dataset = PairedECGDataset(str(resolve_serialized_data_path(cfg, cfg.DATA.DATASET_PATH)))
+    test_dataset = PairedECGDataset(str(resolve_serialized_data_path(cfg, cfg.DATA.TEST_DATASET_PATH or cfg.DATA.DATASET_PATH)))
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=cfg.TRAIN.BATCH_SIZE,
@@ -195,6 +195,8 @@ def run(config_path, overrides):
         num_layers=cfg.MODEL.IBE.NUM_LAYERS,
         text_embed_dim=cfg.MODEL.IBE.TEXT_EMBED_DIM,
         patient_info_size=cfg.MODEL.IBE.PATIENT_INFO_SIZE,
+        base_vector_mode=cfg.MODEL.BASE_VECTOR.MODE,
+        base_vector_bottleneck_dim=cfg.MODEL.BASE_VECTOR.BOTTLENECK_DIM,
     ).to(device)
 
     if cfg.TRAIN.LOAD_PRETRAIN:

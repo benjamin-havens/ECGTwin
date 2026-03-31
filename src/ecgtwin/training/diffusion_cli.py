@@ -6,7 +6,7 @@ import torch
 from diffusers import DDPMScheduler
 from torch.utils.data import DataLoader
 
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.core.logging import configure_logger
 from ecgtwin.data.collate import paired_ecg_collate_fn
 from ecgtwin.data.datasets import PairedECGDataset
@@ -56,6 +56,9 @@ def _meta(cfg):
         "device": cfg.SYSTEM.DEVICE,
         "mix": cfg.MODEL.MIX_TEXT,
         "model_type": cfg.MODEL.NAME,
+        "base_vector_mode": cfg.MODEL.BASE_VECTOR.MODE,
+        "base_vector_noise_std": cfg.MODEL.BASE_VECTOR.NOISE_STD,
+        "base_vector_mask_prob": cfg.MODEL.BASE_VECTOR.MASK_PROB,
     }
 
 
@@ -85,7 +88,7 @@ def run(config_path, overrides):
     logger.info(meta)
     logger.info(hyper_params)
 
-    train_dataset = PairedECGDataset(cfg.DATA.DATASET_PATH)
+    train_dataset = PairedECGDataset(str(resolve_serialized_data_path(cfg, cfg.DATA.DATASET_PATH)))
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=cfg.TRAIN.BATCH_SIZE,
@@ -108,6 +111,8 @@ def run(config_path, overrides):
         num_layers=cfg.MODEL.IBE.NUM_LAYERS,
         text_embed_dim=cfg.MODEL.IBE.TEXT_EMBED_DIM,
         patient_info_size=cfg.MODEL.IBE.PATIENT_INFO_SIZE,
+        base_vector_mode=cfg.MODEL.BASE_VECTOR.MODE,
+        base_vector_bottleneck_dim=cfg.MODEL.BASE_VECTOR.BOTTLENECK_DIM,
     )
     ibe_model.load_state_dict(torch.load(cfg.CHECKPOINTS.IBE_PATH, map_location="cpu"))
 

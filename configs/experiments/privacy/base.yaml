@@ -1,0 +1,57 @@
+SYSTEM:
+  DEVICE: "cuda:0"
+
+DATA:
+  DATASET_PATH: "Mimic_vae.pt"
+
+MODEL:
+  NAME: "DiT_ECGTwin"
+  EXP_NAME: "DiT_ECGTwin"
+  USE_VAE_LATENT: true
+  MIX_TEXT: false
+  BASE_VECTOR:
+    MODE: "standard"
+    NOISE_STD: 0.1
+    BOTTLENECK_DIM: 256
+    MASK_PROB: 0.15
+    APPLY_AT_INFERENCE: true
+
+CHECKPOINTS:
+  NOISE_PREDICTOR_PATH: "checkpoints/ECGTwin_DiT.pth"
+  IBE_PATH: "checkpoints/ibe_model.pth"
+
+DIFFUSION:
+  SAMPLER: "ddpm"
+  INFERENCE_TIMESTEP: 1000
+
+PRIVACY:
+  EXP_NAME: "privacy_audit"
+  OUTPUT_DIR: "outputs/privacy"
+  MEMBER_DATASET_PATH: "Mimic_vae_multi_nomic.pt"
+  NONMEMBER_DATASET_PATH: "Mimic_vae_multi_nomic_test.pt"
+  LEVELS: ["patient", "record"]
+  FEATURE_SPACE: "latent"
+  MAX_PATIENTS: 0
+  MAX_RECORDS_PER_PATIENT: 0
+  RANDOM_SEED: 42
+  SYNTHETIC_NUM_SAMPLES: 32
+  SYNTHETIC_BATCH_SIZE: 32
+  GPU_IDS: []
+  BLACK_BOX:
+    KNN_K: 5
+    DISTANCE: "l2"
+    AGGREGATION: "max"
+  WHITE_BOX:
+    TIMESTEPS: [1, 50, 100, 250, 500, 750, 999]
+    DISTANCE: "l2"
+    AGGREGATION: "max"
+  DOMIAS:
+    KNN_K: 5
+    REFERENCE_SPLIT: 0.5
+    AGGREGATION: "max"
+  RECONSTRUCTION:
+    ENABLED: true
+    DISTANCE: "l2"
+    AGGREGATION: "max"
+    SAVE_EXAMPLE_COUNT_PER_LABEL: 8
+    DECODE_EXAMPLES: true

@@ -2,8 +2,8 @@ SYSTEM:
   DEVICE: "cuda:0"
 
 DATA:
-  DATASET_PATH: "data/Mimic_vae_multi_nomic.pt"
-  TEST_DATASET_PATH: "data/Mimic_vae_multi_nomic_test.pt"
+  DATASET_PATH: "Mimic_vae_multi_nomic.pt"
+  TEST_DATASET_PATH: "Mimic_vae_multi_nomic_test.pt"
 
 MODEL:
   NAME: "CLIP"
@@ -22,4 +22,3 @@ TRAIN:
 CHECKPOINTS:
   VAE_PATH: "checkpoints/vae_model.pth"
   CLIP_PATH: "checkpoints/clip_1/clip_best.pth"
-

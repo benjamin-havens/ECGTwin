@@ -2,16 +2,7 @@
 
 import argparse
 
-from ecgtwin.apps.pecg_monitor.classifier_test import run as run_pecg_classifier_test
-from ecgtwin.apps.pecg_monitor.classifier_train import run as run_pecg_classifier_train
-from ecgtwin.apps.pecg_monitor.generation import run as run_pecg_generation
-from ecgtwin.data.preprocess.pair_dataset import run as run_pair_dataset
-from ecgtwin.data.preprocess.store_text_embeddings import run as run_store_text_embeddings
-from ecgtwin.data.preprocess.vae_encoding import run as run_vae_encoding
-from ecgtwin.inference.cli import run as run_inference
-from ecgtwin.training.clip_cli import run as run_clip
-from ecgtwin.training.diffusion_cli import run as run_diffusion
-from ecgtwin.training.ibe_cli import run as run_ibe
+from ecgtwin.core.runtime_env import configure_runtime_environment
 
 
 def build_parser():
@@ -21,7 +12,7 @@ def build_parser():
 
     def add_config_parser(name):
         command_parser = subparsers.add_parser(name)
-        command_parser.add_argument("--config", required=True)
+        command_parser.add_argument("--config", required=True, action="append")
         command_parser.add_argument("overrides", nargs="*")
         return command_parser
 
@@ -32,18 +23,32 @@ def build_parser():
     add_config_parser("preprocess-pair")
     add_config_parser("preprocess-embed")
     add_config_parser("encode-vae")
+    add_config_parser("privacy-audit")
+    add_config_parser("privacy-generate")
+    add_config_parser("privacy-splits")
     add_config_parser("pecg-monitor-generate")
     add_config_parser("pecg-monitor-train-classifier")
     add_config_parser("pecg-monitor-test-classifier")
     return parser
 
 
-def main():
-    """Parse CLI arguments and dispatch to the requested workflow."""
-    parser = build_parser()
-    args = parser.parse_args()
+def _command_map():
+    """Import workflow entrypoints lazily so parser-only use stays lightweight."""
+    from ecgtwin.apps.pecg_monitor.classifier_test import run as run_pecg_classifier_test
+    from ecgtwin.apps.pecg_monitor.classifier_train import run as run_pecg_classifier_train
+    from ecgtwin.apps.pecg_monitor.generation import run as run_pecg_generation
+    from ecgtwin.data.preprocess.pair_dataset import run as run_pair_dataset
+    from ecgtwin.data.preprocess.store_text_embeddings import run as run_store_text_embeddings
+    from ecgtwin.data.preprocess.vae_encoding import run as run_vae_encoding
+    from ecgtwin.inference.cli import run as run_inference
+    from ecgtwin.privacy.cli import run_audit as run_privacy_audit
+    from ecgtwin.privacy.cli import run_generate as run_privacy_generate
+    from ecgtwin.privacy.cli import run_splits as run_privacy_splits
+    from ecgtwin.training.clip_cli import run as run_clip
+    from ecgtwin.training.diffusion_cli import run as run_diffusion
+    from ecgtwin.training.ibe_cli import run as run_ibe
 
-    command_map = {
+    return {
         "train-diffusion": run_diffusion,
         "infer": run_inference,
         "train-ibe": run_ibe,
@@ -51,8 +56,18 @@ def main():
         "preprocess-pair": run_pair_dataset,
         "preprocess-embed": run_store_text_embeddings,
         "encode-vae": run_vae_encoding,
+        "privacy-audit": run_privacy_audit,
+        "privacy-generate": run_privacy_generate,
+        "privacy-splits": run_privacy_splits,
         "pecg-monitor-generate": run_pecg_generation,
         "pecg-monitor-train-classifier": run_pecg_classifier_train,
         "pecg-monitor-test-classifier": run_pecg_classifier_test,
     }
-    command_map[args.command](args.config, args.overrides)
+
+
+def main():
+    """Parse CLI arguments and dispatch to the requested workflow."""
+    configure_runtime_environment()
+    parser = build_parser()
+    args = parser.parse_args()
+    _command_map()[args.command](args.config, args.overrides)

@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from ecgtwin.apps.pecg_monitor.classifier import ResNetECG
 from ecgtwin.apps.pecg_monitor.classifier_train import train_batch
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.core.logging import configure_logger
 from ecgtwin.data.datasets import ListDataset
 from ecgtwin.models.vae_model import VAE_Decoder
@@ -60,7 +60,7 @@ def run(config_path, overrides):
     device = torch.device(cfg.SYSTEM.DEVICE if torch.cuda.is_available() else "cpu")
     logger = configure_logger("pecg-monitor-test", Path(cfg.APPS.PECG_MONITOR.OUTPUT_DIR) / "test.log")
 
-    test_dataset = torch.load(cfg.APPS.PECG_MONITOR.TEST_DATASET_PATH)
+    test_dataset = torch.load(resolve_serialized_data_path(cfg, cfg.APPS.PECG_MONITOR.TEST_DATASET_PATH))
 
     decoder = VAE_Decoder()
     checkpoint = torch.load(cfg.CHECKPOINTS.VAE_PATH, map_location=device)

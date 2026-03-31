@@ -4,13 +4,14 @@ from pathlib import Path
 
 import torch
 import yaml
-from diffusers import DDPMScheduler
 from transformers import AutoModel, AutoTokenizer
 
-from ecgtwin.config import load_config
+from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.data.patient import normalize_patient_value, sex_to_binary
 from ecgtwin.data.text_embeddings import get_text_embedding
 from ecgtwin.inference.generation import ddpm_generation
+from ecgtwin.inference.scheduler import build_inference_scheduler
+from ecgtwin.models.base_vector import apply_base_vector_ablation
 from ecgtwin.models.factory import build_noise_predictor
 from ecgtwin.models.ib_extractor import IBExtractor
 from ecgtwin.models.vae_model import VAE_Decoder
@@ -51,7 +52,7 @@ def run(config_path, overrides):
     """Generate subject-specific training samples for pECGMonitor."""
     cfg = load_config(config_path, overrides)
     device = torch.device(cfg.APPS.PECG_MONITOR.GPU_DEVICE if torch.cuda.is_available() else "cpu")
-    test_dataset = torch.load(cfg.APPS.PECG_MONITOR.TEST_DATASET_PATH)
+    test_dataset = torch.load(resolve_serialized_data_path(cfg, cfg.APPS.PECG_MONITOR.TEST_DATASET_PATH))
     hyper_params = _hyper_params(cfg)
 
     decoder = VAE_Decoder()
@@ -67,6 +68,8 @@ def run(config_path, overrides):
         num_layers=cfg.MODEL.IBE.NUM_LAYERS,
         text_embed_dim=cfg.MODEL.IBE.TEXT_EMBED_DIM,
         patient_info_size=cfg.MODEL.IBE.PATIENT_INFO_SIZE,
+        base_vector_mode=cfg.MODEL.BASE_VECTOR.MODE,
+        base_vector_bottleneck_dim=cfg.MODEL.BASE_VECTOR.BOTTLENECK_DIM,
     )
     ibe_model.load_state_dict(torch.load(cfg.CHECKPOINTS.IBE_PATH, map_location=device))
     ibe_model.to(device)
@@ -77,12 +80,7 @@ def run(config_path, overrides):
     noise_predictor.to(device)
     noise_predictor.eval()
 
-    diffused_model = DDPMScheduler(
-        num_train_timesteps=cfg.DIFFUSION.NUM_TRAIN_STEPS,
-        beta_start=cfg.DIFFUSION.BETA_START,
-        beta_end=cfg.DIFFUSION.BETA_END,
-    )
-    diffused_model.set_timesteps(cfg.DIFFUSION.INFERENCE_TIMESTEP)
+    diffused_model = build_inference_scheduler(cfg)
 
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     embedding_model = AutoModel.from_pretrained(
@@ -121,6 +119,12 @@ def run(config_path, overrides):
 
             ref_latent = ecg_ref["data"].unsqueeze(0).transpose(2, 1).to(device)
             ib_vector = ibe_model.extract_features(ref_latent, text_embed_ref, None, ref_vector, reduce=True)
+            if cfg.MODEL.BASE_VECTOR.APPLY_AT_INFERENCE:
+                ib_vector = apply_base_vector_ablation(
+                    ib_vector,
+                    mode=cfg.MODEL.BASE_VECTOR.MODE,
+                    noise_std=cfg.MODEL.BASE_VECTOR.NOISE_STD,
+                )
 
             personal_trainset = []
             for entry in source_file:

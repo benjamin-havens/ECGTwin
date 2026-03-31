@@ -1,0 +1,8 @@
+MODEL:
+  BASE_VECTOR:
+    MODE: "bottleneck"
+    BOTTLENECK_DIM: 64
+    APPLY_AT_INFERENCE: true
+
+PRIVACY:
+  EXP_NAME: "privacy_bottleneck_base_vector"

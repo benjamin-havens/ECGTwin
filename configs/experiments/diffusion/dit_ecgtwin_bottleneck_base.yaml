@@ -1,0 +1,24 @@
+SYSTEM:
+  DEVICE: "cuda:2"
+
+DATA:
+  DATASET_PATH: "paired_Mimic_vae_multi_nomic.pt"
+
+MODEL:
+  NAME: "DiT_ECGTwin"
+  EXP_NAME: "DiT_ECGTwin_bottleneck_base"
+  USE_VAE_LATENT: true
+  MIX_TEXT: false
+  BASE_VECTOR:
+    MODE: "bottleneck"
+    BOTTLENECK_DIM: 64
+    MASK_PROB: 0.15
+
+TRAIN:
+  TASK: "diffusion"
+  EPOCHS: 30
+  BATCH_SIZE: 512
+  LR: 1.0e-4
+
+CHECKPOINTS:
+  IBE_PATH: "checkpoints/ibe_model.pth"

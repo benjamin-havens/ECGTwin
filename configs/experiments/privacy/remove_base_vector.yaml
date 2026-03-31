@@ -1,0 +1,7 @@
+MODEL:
+  BASE_VECTOR:
+    MODE: "remove"
+    APPLY_AT_INFERENCE: true
+
+PRIVACY:
+  EXP_NAME: "privacy_remove_base_vector"

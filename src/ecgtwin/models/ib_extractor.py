@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+from ecgtwin.models.base_vector import BaseVectorBottleneck
 from ecgtwin.models.embedder import PatientInfoEmbedder, RoPEEmbedder
 
 # Feed Forward Network
@@ -56,9 +57,22 @@ class IBEncoderLayer(nn.Module):
         return x
 
 class IBExtractor(nn.Module):
-    def __init__(self, embed_dim=256, in_channel=4, num_heads=8, ff_hidden_size=1024, num_layers=3, dropout=0, text_embed_dim=768, patient_info_size=3):
+    def __init__(
+        self,
+        embed_dim=256,
+        in_channel=4,
+        num_heads=8,
+        ff_hidden_size=1024,
+        num_layers=3,
+        dropout=0,
+        text_embed_dim=768,
+        patient_info_size=3,
+        base_vector_mode="standard",
+        base_vector_bottleneck_dim=256,
+    ):
         super(IBExtractor, self).__init__()
         self.embed_dim = embed_dim
+        self.base_vector_mode = base_vector_mode
         self.signal_embedding = nn.Linear(in_channel, embed_dim) 
         self.RoPE = RoPEEmbedder(dim=embed_dim)
         # self.p_embedding = PatientInfoEmbedder(patient_info_size, embed_dim)
@@ -72,6 +86,10 @@ class IBExtractor(nn.Module):
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
 
         self.classfree_emb = nn.Parameter(torch.ones([1, embed_dim]))
+        if base_vector_mode == "bottleneck":
+            self.base_vector_adapter = BaseVectorBottleneck(embed_dim, base_vector_bottleneck_dim)
+        else:
+            self.base_vector_adapter = nn.Identity()
 
 
     # def extract_features(self, x, text_embed, mask, p, reduce=True):
@@ -127,7 +145,7 @@ class IBExtractor(nn.Module):
         
         if reduce:
             # (B, L, dim) -> (B, dim)
-            return x.mean(dim=1)
+            return self.base_vector_adapter(x.mean(dim=1))
         else:
             # (B, L, dim)
             return x

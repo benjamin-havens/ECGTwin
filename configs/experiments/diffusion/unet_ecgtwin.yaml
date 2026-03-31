@@ -2,7 +2,7 @@ SYSTEM:
   DEVICE: "cuda:6"
 
 DATA:
-  DATASET_PATH: "data/paired_Mimic_vae_multi_nomic.pt"
+  DATASET_PATH: "paired_Mimic_vae_multi_nomic.pt"
 
 MODEL:
   NAME: "Unet_ECGTwin"
@@ -24,6 +24,7 @@ MODEL:
     PATIENT_INFO_SIZE: 3
 
 DIFFUSION:
+  SAMPLER: "ddpm"
   NUM_TRAIN_STEPS: 1000
   BETA_START: 0.00085
   BETA_END: 0.0120
@@ -47,4 +48,3 @@ INFERENCE:
   AGE: 60
   SEX: "F"
   TEXT: "sinus rhythm|normal ecg."
-
