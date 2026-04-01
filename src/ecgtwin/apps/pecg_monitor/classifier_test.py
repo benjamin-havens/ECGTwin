@@ -1,20 +1,21 @@
 """Evaluation workflow for personalized pECGMonitor classifier testing."""
 
 from copy import deepcopy
+import json
 from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import auc, f1_score, roc_curve
 from torch.utils.data import DataLoader
 
 from ecgtwin.apps.pecg_monitor.classifier import ResNetECG
-from ecgtwin.apps.pecg_monitor.classifier_train import train_batch
+from ecgtwin.apps.pecg_monitor.classifier_train import macro_f1_score, train_batch
 from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.core.logging import configure_logger
 from ecgtwin.data.datasets import ListDataset
 from ecgtwin.models.vae_model import VAE_Decoder
+from ecgtwin.privacy.metrics import auc, roc_curve
 
 
 def finetune_loop(dataloader, model, loss_fn, optimizer, device, decoder=None):
@@ -50,7 +51,7 @@ def individual_level_test(ecg_list, model, device, decoder):
     score = logit[:, 0].cpu().numpy()
     size = len(ecg_list) - 1
     acc = np.sum(np.equal(pred, label)) / size
-    f1 = f1_score(label, pred, average="macro")
+    f1 = macro_f1_score(label, pred)
     return acc, f1, label, pred, score
 
 
@@ -105,7 +106,17 @@ def run(config_path, overrides):
     logger.info("Individual Scope: Acc: %.3f, Macro F1: %.3f", total_acc_i, total_f1_i)
 
     total_acc_p = np.sum(np.equal(all_pred, all_label)) / len(all_label)
-    total_f1_p = f1_score(all_label, all_pred, average="macro")
-    fpr, tpr, _ = roc_curve(all_label, all_score, pos_label=0)
+    total_f1_p = macro_f1_score(all_label, all_pred)
+    fpr, tpr, _ = roc_curve([1 - int(label) for label in all_label], [float(score) for score in all_score])
     roc_auc = auc(fpr, tpr)
+    metrics = {
+        "individual_accuracy": float(total_acc_i),
+        "individual_macro_f1": float(total_f1_i),
+        "population_accuracy": float(total_acc_p),
+        "population_macro_f1": float(total_f1_p),
+        "population_auroc": float(roc_auc),
+    }
+    metrics_path = Path(cfg.APPS.PECG_MONITOR.OUTPUT_DIR) / "test_metrics.json"
+    metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     logger.info("Population Scope: Acc: %.3f, Macro F1: %.3f, AUROC: %.3f", total_acc_p, total_f1_p, roc_auc)
+    return {"metrics_path": str(metrics_path), "output_dir": str(Path(cfg.APPS.PECG_MONITOR.OUTPUT_DIR))}

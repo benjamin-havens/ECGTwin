@@ -49,7 +49,7 @@ def generate_ecg(
     prerequisites,
     noise_predictor,
     diffused_model,
-    ibe_model,
+    conditioner_model,
     decoder,
     tokenizer,
     embedding_model,
@@ -91,7 +91,7 @@ def generate_ecg(
 
     text_embed_ref = prerequisites["ref"]["text_embed"].unsqueeze(0).repeat(batch, 1, 1).to(device)
     latent_ref = prerequisites["ref_latent"].unsqueeze(0).repeat(batch, 1, 1).transpose(2, 1).to(device)
-    base_vector = ibe_model.extract_features(latent_ref, text_embed_ref, None, pat_info_ref, reduce=True)
+    base_vector = conditioner_model.extract_features(latent_ref, text_embed_ref, None, pat_info_ref, reduce=True)
     if apply_base_vector_ablation_at_inference:
         base_vector = apply_base_vector_ablation(
             base_vector,
@@ -139,3 +139,47 @@ def generate_ecg(
 
     with open(save_sample_path / "features.json", "w", encoding="utf-8") as json_file:
         json.dump(features_file_content, json_file, indent=4)
+
+
+def build_infer_tasks(cfg) -> list[dict]:
+    """Build the single-request task payload consumed by Lightning predict."""
+    reference_data = torch.load(cfg.PATHS.REFERENCE_SAMPLE, map_location="cpu")
+    return [
+        {
+            "task_id": "infer",
+            "prerequisites": {
+                "ref_latent": reference_data["data"],
+                "ref": reference_data["label"],
+                "tar": {
+                    "save_sample_path": cfg.INFERENCE.SAVE_SAMPLE_PATH,
+                    "gen_batch": cfg.INFERENCE.GEN_BATCH,
+                    "hr": cfg.INFERENCE.HR,
+                    "age": cfg.INFERENCE.AGE,
+                    "sex": cfg.INFERENCE.SEX,
+                    "text": cfg.INFERENCE.TEXT,
+                },
+            },
+        }
+    ]
+
+
+def run_infer_task(task: dict, runtime: dict, cfg) -> dict:
+    """Execute one inference request using a preloaded generation runtime."""
+    generate_ecg(
+        prerequisites=task["prerequisites"],
+        noise_predictor=runtime["noise_predictor"],
+        diffused_model=runtime["scheduler"],
+        conditioner_model=runtime["conditioner"],
+        decoder=runtime["decoder"],
+        tokenizer=runtime["tokenizer"],
+        embedding_model=runtime["embedding_model"],
+        device=runtime["device"],
+        mix=cfg.MODEL.MIX_TEXT,
+        base_vector_mode=cfg.MODEL.BASE_VECTOR.MODE,
+        base_vector_noise_std=cfg.MODEL.BASE_VECTOR.NOISE_STD,
+        apply_base_vector_ablation_at_inference=cfg.MODEL.BASE_VECTOR.APPLY_AT_INFERENCE,
+    )
+    return {
+        "task_id": task["task_id"],
+        "output_dir": task["prerequisites"]["tar"]["save_sample_path"],
+    }

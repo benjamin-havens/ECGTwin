@@ -17,8 +17,15 @@ def build_parser():
         return command_parser
 
     add_config_parser("train-diffusion")
+    add_config_parser("train-foundation")
+    add_config_parser("train-vae")
     add_config_parser("train-ibe")
     add_config_parser("train-clip")
+    add_config_parser("generate-batch")
+    add_config_parser("evaluate-generation")
+    add_config_parser("evaluate-personalization")
+    add_config_parser("compare-runs")
+    add_config_parser("reproduce-paper")
     add_config_parser("infer")
     add_config_parser("preprocess-pair")
     add_config_parser("preprocess-embed")
@@ -40,16 +47,30 @@ def _command_map():
     from ecgtwin.data.preprocess.pair_dataset import run as run_pair_dataset
     from ecgtwin.data.preprocess.store_text_embeddings import run as run_store_text_embeddings
     from ecgtwin.data.preprocess.vae_encoding import run as run_vae_encoding
+    from ecgtwin.evaluation.compare_cli import run as run_compare_runs
+    from ecgtwin.evaluation.generation_cli import run_evaluate as run_evaluate_generation
+    from ecgtwin.evaluation.generation_cli import run_generate_batch as run_generate_batch
+    from ecgtwin.evaluation.personalization_cli import run as run_evaluate_personalization
+    from ecgtwin.evaluation.reproduce_cli import run as run_reproduce_paper
     from ecgtwin.inference.cli import run as run_inference
     from ecgtwin.privacy.cli import run_audit as run_privacy_audit
     from ecgtwin.privacy.cli import run_generate as run_privacy_generate
     from ecgtwin.privacy.cli import run_splits as run_privacy_splits
     from ecgtwin.training.clip_cli import run as run_clip
     from ecgtwin.training.diffusion_cli import run as run_diffusion
+    from ecgtwin.training.foundation_cli import run as run_foundation
     from ecgtwin.training.ibe_cli import run as run_ibe
+    from ecgtwin.training.vae_cli import run as run_vae_train
 
     return {
         "train-diffusion": run_diffusion,
+        "train-foundation": run_foundation,
+        "train-vae": run_vae_train,
+        "generate-batch": run_generate_batch,
+        "evaluate-generation": run_evaluate_generation,
+        "evaluate-personalization": run_evaluate_personalization,
+        "compare-runs": run_compare_runs,
+        "reproduce-paper": run_reproduce_paper,
         "infer": run_inference,
         "train-ibe": run_ibe,
         "train-clip": run_clip,

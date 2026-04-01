@@ -9,6 +9,8 @@ MODEL:
   EXP_NAME: "DiT_ECGTwin_remove_base"
   USE_VAE_LATENT: true
   MIX_TEXT: false
+  CONDITIONER:
+    TYPE: "foundation_jepa"
   BASE_VECTOR:
     MODE: "remove"
     MASK_PROB: 0.15
@@ -20,4 +22,4 @@ TRAIN:
   LR: 1.0e-4
 
 CHECKPOINTS:
-  IBE_PATH: "checkpoints/ibe_model.pth"
+  CONDITIONER_PATH: "checkpoints/conditioner_best.pth"

@@ -8,13 +8,21 @@ ecgtwin <command> --config <path> [--config <path> ...] [YACS overrides...]
 
 ## Training Commands
 
+### Foundation Conditioner
+
+```sh
+ecgtwin train-foundation --config configs/experiments/foundation/base.yaml
+```
+
+Runs the Lightning-based JEPA-style multimodal conditioner training flow and exports `conditioner_best.pth` for downstream diffusion, inference, privacy, and app workflows.
+
 ### Diffusion
 
 ```sh
 ecgtwin train-diffusion --config configs/experiments/diffusion/dit_ecgtwin.yaml
 ```
 
-Runs the paired ECG diffusion training flow.
+Runs the Lightning-based paired ECG diffusion training flow against the configured conditioner checkpoint.
 
 ### IBE
 
@@ -64,7 +72,7 @@ Generates per-record synthetic latent pools for black-box MIA and DOMIAS-style s
 ecgtwin privacy-audit --config configs/experiments/privacy/base.yaml
 ```
 
-Runs black-box MIA, white-box IBE and diffusion MIA, synthetic-only DOMIAS scoring, and a model-inversion-style reconstruction attack that reuses each record's synthetic pool.
+Runs black-box MIA, white-box conditioner and diffusion MIA, synthetic-only DOMIAS scoring, and a model-inversion-style reconstruction attack that reuses each record's synthetic pool.
 If `PRIVACY.GPU_IDS` is set, the audit parallelizes across one process per listed GPU.
 
 ## Preprocessing

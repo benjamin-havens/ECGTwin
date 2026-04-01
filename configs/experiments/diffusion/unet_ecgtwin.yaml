@@ -10,6 +10,8 @@ MODEL:
   DESCRIPTION: "UNet ECGTwin"
   USE_VAE_LATENT: true
   MIX_TEXT: false
+  CONDITIONER:
+    TYPE: "foundation_jepa"
   UNET:
     KERNEL_SIZE: 7
     NUM_LEVEL: 6
@@ -39,7 +41,7 @@ TRAIN:
 CHECKPOINTS:
   NOISE_PREDICTOR_PATH: "checkpoints/ECGTwin_Unet.pth"
   VAE_PATH: "checkpoints/vae_model.pth"
-  IBE_PATH: "checkpoints/ibe_model.pth"
+  CONDITIONER_PATH: "checkpoints/conditioner_best.pth"
 
 INFERENCE:
   SAVE_SAMPLE_PATH: "generation_result"

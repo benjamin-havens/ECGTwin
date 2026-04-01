@@ -45,3 +45,4 @@ def run(config_path, overrides):
     )
     Path(dst_path).parent.mkdir(parents=True, exist_ok=True)
     build_pair_dataset(src_path, dst_path)
+    return {"dataset_path": dst_path}

@@ -51,3 +51,4 @@ def run(config_path, overrides):
         store_whole_embedding_to_dataset(src, dst, tokenizer, model)
     else:
         store_split_embedding_to_dataset(src, dst, tokenizer, model)
+    return {"dataset_path": dst}

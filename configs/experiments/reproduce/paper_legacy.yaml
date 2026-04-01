@@ -1,0 +1,65 @@
+SYSTEM:
+  DEVICE: "cuda:0"
+  MATMUL_PRECISION: "high"
+
+PATHS:
+  CHECKPOINTS_DIR: "checkpoints"
+
+DATA:
+  DATASET_PATH: "paired_Mimic_vae_multi_nomic.pt"
+  TEST_DATASET_PATH: "paired_Mimic_vae_multi_nomic_test.pt"
+
+MODEL:
+  NAME: "DiT_ECGTwin"
+  EXP_NAME: "paper_legacy"
+  DESCRIPTION: "Legacy ECGTwin paper path with contrastive IBE"
+  USE_VAE_LATENT: true
+  MIX_TEXT: false
+  CONDITIONER:
+    TYPE: "ibe"
+  IBE:
+    EMBED_DIM: 256
+    NUM_HEADS: 8
+    FF_HIDDEN_SIZE: 1024
+    NUM_LAYERS: 3
+    TEXT_EMBED_DIM: 768
+    PATIENT_INFO_SIZE: 3
+  DIT:
+    HIDDEN_SIZE: 256
+    DEPTH: 7
+    NUM_HEADS: 8
+    PATIENT_INFO_SIZE: 3
+  CLIP:
+    EMBED_DIM: 64
+    TEXT_EMBED_DIM: 768
+
+CHECKPOINTS:
+  VAE_PATH: "checkpoints/vae_model.pth"
+  CONDITIONER_PATH: "checkpoints/ibe_model.pth"
+  IBE_PATH: "checkpoints/ibe_model.pth"
+  NOISE_PREDICTOR_PATH: "checkpoints/ECGTwin_DiT.pth"
+  CLIP_PATH: "checkpoints/clip_1/clip_best.pth"
+
+REPRO:
+  RUN_NAME: "paper_legacy"
+  STAGES:
+    - "vae"
+    - "preprocess"
+    - "text_embed"
+    - "pair"
+    - "foundation"
+    - "diffusion"
+    - "clip"
+    - "generate_batch"
+    - "privacy"
+    - "pecg_generate"
+    - "pecg_train"
+    - "pecg_test"
+    - "compare"
+  USE_EXISTING_MODEL_STAGES:
+    - "vae"
+    - "foundation"
+    - "diffusion"
+
+REPORT:
+  PAPER_PDF_PATH: "Lai et al. - 2025 - ECGTwin Personalized ECG Generation Using Controllable Diffusion Model.pdf"

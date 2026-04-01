@@ -217,3 +217,4 @@ def run(config_path, overrides):
             max_score = epoch_avg_score
         if (epoch + 1) % 10 == 0:
             torch.save(ibe_model.state_dict(), save_dir / f"IBE_model_ep{epoch + 1}.pth")
+    return {"save_dir": str(save_dir), "checkpoint_path": str(save_dir / "IBE_best.pth")}

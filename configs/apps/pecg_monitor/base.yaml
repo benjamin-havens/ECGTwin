@@ -4,6 +4,8 @@ SYSTEM:
 MODEL:
   NAME: "DiT_ECGTwin"
   MIX_TEXT: false
+  CONDITIONER:
+    TYPE: "foundation_jepa"
   DIT:
     HIDDEN_SIZE: 256
     DEPTH: 7
@@ -41,7 +43,7 @@ TRAIN:
 CHECKPOINTS:
   NOISE_PREDICTOR_PATH: "checkpoints/ECGTwin_DiT.pth"
   VAE_PATH: "checkpoints/vae_model.pth"
-  IBE_PATH: "checkpoints/ibe_model.pth"
+  CONDITIONER_PATH: "checkpoints/conditioner_best.pth"
 
 APPS:
   PECG_MONITOR:

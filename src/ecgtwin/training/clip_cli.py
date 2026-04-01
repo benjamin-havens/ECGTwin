@@ -107,7 +107,7 @@ def run(config_path, overrides):
     decoder.to(device)
     decoder.eval()
 
-    clip_model = CLIP(embed_dim=cfg.MODEL.CLIP.EMBED_DIM).to(device)
+    clip_model = CLIP(embed_dim=cfg.MODEL.CLIP.EMBED_DIM, text_embed_dim=cfg.MODEL.CLIP.TEXT_EMBED_DIM).to(device)
     if cfg.TRAIN.LOAD_PRETRAIN:
         clip_model.load_state_dict(torch.load(cfg.TRAIN.LOAD_PRETRAIN, map_location=device))
 
@@ -126,3 +126,4 @@ def run(config_path, overrides):
             max_score = epoch_avg_clip_score
         if (epoch + 1) % 5 == 0:
             torch.save(clip_model.state_dict(), save_dir / f"clip_model_ep{epoch + 1}.pth")
+    return {"save_dir": str(save_dir), "checkpoint_path": str(save_dir / "clip_best.pth")}

@@ -13,6 +13,7 @@ def get_cfg_defaults():
     cfg.SYSTEM.NUM_WORKERS = 0
     cfg.SYSTEM.PIN_MEMORY = False
     cfg.SYSTEM.AMP = False
+    cfg.SYSTEM.MATMUL_PRECISION = "default"
 
     cfg.PATHS = CN()
     cfg.PATHS.DATA_ROOT = "data"
@@ -23,6 +24,7 @@ def get_cfg_defaults():
     cfg.PATHS.PATIENTS_CSV = "/path/to/mimic-iv-2.2/hosp/patients.csv"
     cfg.PATHS.EXCLUDE_LIST = "data/exclude_list.txt"
     cfg.PATHS.REFERENCE_SAMPLE = "data/prepared_input/normal_1.pt"
+    cfg.PATHS.PTBXL_ROOT = "/path/to/ptb-xl"
 
     cfg.DATA = CN()
     cfg.DATA.DATASET_PATH = "paired_Mimic_vae_multi_nomic.pt"
@@ -42,6 +44,9 @@ def get_cfg_defaults():
     cfg.MODEL.DESCRIPTION = "ECGTwin experiment"
     cfg.MODEL.USE_VAE_LATENT = True
     cfg.MODEL.MIX_TEXT = False
+
+    cfg.MODEL.CONDITIONER = CN()
+    cfg.MODEL.CONDITIONER.TYPE = "foundation_jepa"
 
     cfg.MODEL.DIT = CN()
     cfg.MODEL.DIT.HIDDEN_SIZE = 256
@@ -63,6 +68,20 @@ def get_cfg_defaults():
     cfg.MODEL.IBE.TEXT_EMBED_DIM = 768
     cfg.MODEL.IBE.PATIENT_INFO_SIZE = 3
 
+    cfg.MODEL.FOUNDATION = CN()
+    cfg.MODEL.FOUNDATION.EMBED_DIM = 256
+    cfg.MODEL.FOUNDATION.NUM_HEADS = 8
+    cfg.MODEL.FOUNDATION.FF_HIDDEN_SIZE = 1024
+    cfg.MODEL.FOUNDATION.NUM_LAYERS = 6
+    cfg.MODEL.FOUNDATION.DROPOUT = 0.0
+    cfg.MODEL.FOUNDATION.TEXT_EMBED_DIM = 768
+    cfg.MODEL.FOUNDATION.PATIENT_INFO_SIZE = 3
+    cfg.MODEL.FOUNDATION.MASK_RATIO = 0.5
+    cfg.MODEL.FOUNDATION.MASK_SPAN = 8
+    cfg.MODEL.FOUNDATION.PREDICTOR_HIDDEN_SIZE = 512
+    cfg.MODEL.FOUNDATION.EMA_DECAY = 0.996
+    cfg.MODEL.FOUNDATION.POOLING = "mean"
+
     cfg.MODEL.BASE_VECTOR = CN()
     cfg.MODEL.BASE_VECTOR.MODE = "standard"
     cfg.MODEL.BASE_VECTOR.NOISE_STD = 0.1
@@ -72,8 +91,14 @@ def get_cfg_defaults():
 
     cfg.MODEL.CLIP = CN()
     cfg.MODEL.CLIP.EMBED_DIM = 64
+    cfg.MODEL.CLIP.TEXT_EMBED_DIM = 768
     cfg.MODEL.CLIP.NUM_CLASSES = 2
     cfg.MODEL.CLIP.ECG_CHANNELS = 12
+
+    cfg.MODEL.VAE = CN()
+    cfg.MODEL.VAE.KLD_WEIGHT = 1.0e-4
+    cfg.MODEL.VAE.SAVE_RECONSTRUCTIONS = True
+    cfg.MODEL.VAE.RECONSTRUCTION_COUNT = 4
 
     cfg.DIFFUSION = CN()
     cfg.DIFFUSION.NUM_TRAIN_STEPS = 1000
@@ -101,8 +126,17 @@ def get_cfg_defaults():
     cfg.CHECKPOINTS = CN()
     cfg.CHECKPOINTS.NOISE_PREDICTOR_PATH = "checkpoints/ECGTwin_DiT.pth"
     cfg.CHECKPOINTS.VAE_PATH = "checkpoints/vae_model.pth"
+    cfg.CHECKPOINTS.CONDITIONER_PATH = "checkpoints/conditioner_best.pth"
     cfg.CHECKPOINTS.IBE_PATH = "checkpoints/ibe_model.pth"
     cfg.CHECKPOINTS.CLIP_PATH = "checkpoints/clip_1/clip_best.pth"
+    cfg.CHECKPOINTS.BASELINE_ROOT = ""
+    cfg.CHECKPOINTS.CANDIDATE_ROOT = ""
+
+    cfg.EXECUTION = CN()
+    cfg.EXECUTION.GPU_IDS = []
+    cfg.EXECUTION.STRATEGY = "ddp"
+    cfg.EXECUTION.TASK_BATCH_SIZE = 1
+    cfg.EXECUTION.ENABLE_PROGRESS_BAR = True
 
     cfg.INFERENCE = CN()
     cfg.INFERENCE.SAVE_SAMPLE_PATH = "generation_result"
@@ -163,5 +197,78 @@ def get_cfg_defaults():
     cfg.PRIVACY.RECONSTRUCTION.AGGREGATION = "max"
     cfg.PRIVACY.RECONSTRUCTION.SAVE_EXAMPLE_COUNT_PER_LABEL = 8
     cfg.PRIVACY.RECONSTRUCTION.DECODE_EXAMPLES = True
+
+    cfg.REPRO = CN()
+    cfg.REPRO.STAGES = [
+        "preprocess",
+        "vae",
+        "text_embed",
+        "pair",
+        "foundation",
+        "diffusion",
+        "clip",
+        "generate_batch",
+        "privacy",
+        "pecg_generate",
+        "pecg_train",
+        "pecg_test",
+        "compare",
+    ]
+    cfg.REPRO.RUN_NAME = "paper_repro"
+    cfg.REPRO.ROOT_DIR = "outputs/repro"
+    cfg.REPRO.SKIP_EXISTING = True
+    cfg.REPRO.USE_EXISTING_MODEL_STAGES = []
+    cfg.REPRO.DRY_RUN = False
+    cfg.REPRO.ENABLE_PTBXL = False
+
+    cfg.REPORT = CN()
+    cfg.REPORT.PAPER_PDF_PATH = "Lai et al. - 2025 - ECGTwin Personalized ECG Generation Using Controllable Diffusion Model.pdf"
+    cfg.REPORT.BASELINE_ROOT = ""
+    cfg.REPORT.CANDIDATE_ROOT = ""
+    cfg.REPORT.OUTPUT_DIR = "outputs/paper_report"
+    cfg.REPORT.TARGETS = [
+        "table1",
+        "table2",
+        "table3",
+        "table6",
+        "figure3",
+        "figure4",
+        "figure7",
+        "figure8",
+        "figure9",
+        "figure10",
+    ]
+
+    cfg.EVAL = CN()
+    cfg.EVAL.GENERATION = CN()
+    cfg.EVAL.GENERATION.OUTPUT_DIR = "outputs/eval/generation"
+    cfg.EVAL.GENERATION.DATASET_PATH = ""
+    cfg.EVAL.GENERATION.PAIR_DATASET_PATH = ""
+    cfg.EVAL.GENERATION.MAX_PAIRS = 1000
+    cfg.EVAL.GENERATION.GENERATIONS_PER_PAIR = 1
+    cfg.EVAL.GENERATION.BATCH_SIZE = 32
+    cfg.EVAL.GENERATION.FEATURE_CLIP_PATH = "checkpoints/clip_1/clip_best.pth"
+    cfg.EVAL.GENERATION.USE_VAE_LATENT = True
+    cfg.EVAL.GENERATION.GPU_IDS = []
+    cfg.EVAL.GENERATION.TSNE_SAMPLES = 1000
+    cfg.EVAL.GENERATION.SCATTER_SAMPLES = 1000
+    cfg.EVAL.GENERATION.K_NEIGHBORS = 3
+    cfg.EVAL.GENERATION.SAVE_PDF = True
+
+    cfg.EVAL.PERSONALIZATION = CN()
+    cfg.EVAL.PERSONALIZATION.OUTPUT_DIR = "outputs/eval/personalization"
+    cfg.EVAL.PERSONALIZATION.DATASET_PATH = ""
+    cfg.EVAL.PERSONALIZATION.GENERATED_ROOT = ""
+    cfg.EVAL.PERSONALIZATION.MAX_PATIENTS = 10
+    cfg.EVAL.PERSONALIZATION.MAX_RECORDS_PER_PATIENT = 0
+    cfg.EVAL.PERSONALIZATION.TSNE_SAMPLES = 500
+    cfg.EVAL.PERSONALIZATION.SCALING_PATIENT_COUNTS = [10, 20]
+    cfg.EVAL.PERSONALIZATION.INCLUDE_CLASSFREE = True
+    cfg.EVAL.PERSONALIZATION.SAVE_PDF = True
+
+    cfg.EVAL.PECG_MONITOR = CN()
+    cfg.EVAL.PECG_MONITOR.OUTPUT_DIR = "outputs/eval/pecg_monitor"
+    cfg.EVAL.PECG_MONITOR.MAX_SUBJECTS = 0
+    cfg.EVAL.PECG_MONITOR.GENERATED_SAMPLES_PER_LABEL = 0
 
     return cfg

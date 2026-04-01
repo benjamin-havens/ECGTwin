@@ -9,6 +9,8 @@ from pathlib import Path
 
 import torch
 
+from ecgtwin.evaluation.artifacts import json_ready
+
 
 def subject_id_from_record(record: dict) -> str:
     """Extract a stable string subject identifier from a serialized record."""
@@ -152,4 +154,4 @@ def build_manifest(grouped_member_records: dict[str, list[dict]], grouped_nonmem
 def save_manifest(manifest: dict, output_path: Path) -> None:
     """Persist an audit manifest to disk."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    output_path.write_text(json.dumps(json_ready(manifest), indent=2), encoding="utf-8")

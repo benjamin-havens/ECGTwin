@@ -18,7 +18,9 @@ dependencies = [
   "matplotlib>=3.8",
   "numpy>=1.26",
   "pandas>=2.1",
+  "pytorch-lightning>=2.4",
   "PyYAML>=6.0",
+  "scikit-learn>=1.5",
   "scipy>=1.11",
   "torch>=2.1",
   "tqdm>=4.65",
@@ -41,3 +43,5 @@ package-dir = { "" = "src" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]

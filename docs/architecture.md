@@ -43,6 +43,7 @@ Contains neural network definitions and the model factory. Model construction is
 
 Contains supported training flows:
 
+- foundation-conditioner training
 - diffusion training
 - IBE training
 - CLIP training
@@ -64,9 +65,17 @@ Contains the personalized ECG monitoring workflows. This code is treated as a fi
 1. `ecgtwin train-diffusion`
 2. Load config
 3. Build datasets/dataloader
-4. Build model, diffusion scheduler, and IBE model
-5. Run training loop in `ecgtwin.training.diffusion`
+4. Build model, diffusion scheduler, and configured conditioner
+5. Run the Lightning training loop in `ecgtwin.training.diffusion_lightning`
 6. Save logs, checkpoints, and resolved config
+
+### Foundation Conditioner Training
+
+1. `ecgtwin train-foundation`
+2. Load config
+3. Build paired datasets/dataloaders
+4. Build student teacher JEPA conditioner module
+5. Train with Lightning and export the EMA teacher as the runtime conditioner
 
 ### Inference
 
@@ -84,4 +93,3 @@ Preprocessing workflows live under `ecgtwin.data.preprocess` and are responsible
 ## Supported vs Exploratory Code
 
 The code under `src/ecgtwin/` is the supported surface. The material under `research/` is intentionally segregated because it may contain one-off evaluation logic, interactive analysis, or assumptions that are not maintained as part of the primary package API.
-

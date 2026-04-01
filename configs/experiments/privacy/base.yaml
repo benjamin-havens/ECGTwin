@@ -9,6 +9,8 @@ MODEL:
   EXP_NAME: "DiT_ECGTwin"
   USE_VAE_LATENT: true
   MIX_TEXT: false
+  CONDITIONER:
+    TYPE: "foundation_jepa"
   BASE_VECTOR:
     MODE: "standard"
     NOISE_STD: 0.1
@@ -18,7 +20,7 @@ MODEL:
 
 CHECKPOINTS:
   NOISE_PREDICTOR_PATH: "checkpoints/ECGTwin_DiT.pth"
-  IBE_PATH: "checkpoints/ibe_model.pth"
+  CONDITIONER_PATH: "checkpoints/conditioner_best.pth"
 
 DIFFUSION:
   SAMPLER: "ddpm"

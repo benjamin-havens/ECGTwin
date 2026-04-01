@@ -1,164 +1,121 @@
 """Personalized ECG generation workflow for the pECGMonitor app."""
 
+from __future__ import annotations
+
+import json
 from pathlib import Path
 
 import torch
 import yaml
-from transformers import AutoModel, AutoTokenizer
 
 from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.data.patient import normalize_patient_value, sex_to_binary
 from ecgtwin.data.text_embeddings import get_text_embedding
 from ecgtwin.inference.generation import ddpm_generation
-from ecgtwin.inference.scheduler import build_inference_scheduler
+from ecgtwin.inference.lightning_predict import run_generation_tasks
 from ecgtwin.models.base_vector import apply_base_vector_ablation
-from ecgtwin.models.factory import build_noise_predictor
-from ecgtwin.models.ib_extractor import IBExtractor
-from ecgtwin.models.vae_model import VAE_Decoder
+from ecgtwin.privacy.features import sample_patient_tensor, sample_text_tensors
 
 
-def _hyper_params(cfg):
-    """Translate the config tree into the hyperparameter dict expected by the model factory."""
-    return {
-        "ddpm": {
-            "num_train_steps": cfg.DIFFUSION.NUM_TRAIN_STEPS,
-            "beta_start": cfg.DIFFUSION.BETA_START,
-            "beta_end": cfg.DIFFUSION.BETA_END,
-        },
-        "dit": {
-            "hidden_size": cfg.MODEL.DIT.HIDDEN_SIZE,
-            "depth": cfg.MODEL.DIT.DEPTH,
-            "num_heads": cfg.MODEL.DIT.NUM_HEADS,
-            "patient_info_size": cfg.MODEL.DIT.PATIENT_INFO_SIZE,
-        },
-        "unet": {
-            "kernel_size": cfg.MODEL.UNET.KERNEL_SIZE,
-            "num_level": cfg.MODEL.UNET.NUM_LEVEL,
-            "n_heads": cfg.MODEL.UNET.N_HEADS,
-            "patient_info_size": cfg.MODEL.UNET.PATIENT_INFO_SIZE,
-        },
-        "ibe": {
-            "embed_dim": cfg.MODEL.IBE.EMBED_DIM,
-            "num_heads": cfg.MODEL.IBE.NUM_HEADS,
-            "ff_hidden_size": cfg.MODEL.IBE.FF_HIDDEN_SIZE,
-            "num_layers": cfg.MODEL.IBE.NUM_LAYERS,
-            "text_embed_dim": cfg.MODEL.IBE.TEXT_EMBED_DIM,
-            "patient_info_size": cfg.MODEL.IBE.PATIENT_INFO_SIZE,
-        },
-    }
+def load_generation_source_entries(cfg) -> list[dict]:
+    """Load the label/source definitions used to synthesize per-subject trainsets."""
+    with open(cfg.APPS.PECG_MONITOR.GENERATION_SOURCE_PATH, "r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle)
+
+
+def build_pecg_generation_tasks(cfg) -> list[dict]:
+    """Build one pECGMonitor generation task per subject."""
+    test_dataset = torch.load(resolve_serialized_data_path(cfg, cfg.APPS.PECG_MONITOR.TEST_DATASET_PATH), map_location="cpu")
+    output_dir = Path(cfg.APPS.PECG_MONITOR.OUTPUT_DIR) / cfg.MODEL.NAME
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return [
+        {
+            "task_id": str(subject_id),
+            "subject_id": str(subject_id),
+            "reference": ecg_list[0],
+            "output_path": str(output_dir / f"{subject_id}.pt"),
+        }
+        for subject_id, ecg_list in test_dataset.items()
+    ]
+
+
+def write_pecg_generation_task(task: dict, runtime: dict, cfg, source_entries: list[dict]) -> dict:
+    """Generate and persist the personalized latent trainset for one subject."""
+    device = runtime["device"]
+    ecg_ref = task["reference"]
+    ref_latent = ecg_ref["data"].unsqueeze(0).transpose(2, 1).to(device=device, dtype=torch.float32)
+    ref_text_embed, ref_text_mask = sample_text_tensors(ecg_ref, device)
+    ref_pat_info = sample_patient_tensor(ecg_ref, device)
+    base_vector = runtime["conditioner"].extract_features(ref_latent, ref_text_embed, ref_text_mask, ref_pat_info, reduce=True)
+    if cfg.MODEL.BASE_VECTOR.APPLY_AT_INFERENCE:
+        base_vector = apply_base_vector_ablation(
+            base_vector,
+            mode=cfg.MODEL.BASE_VECTOR.MODE,
+            noise_std=cfg.MODEL.BASE_VECTOR.NOISE_STD,
+        )
+
+    personal_trainset = []
+    for entry in source_entries:
+        gen_batch = 128 if entry["label"] == 0 else 64
+        ib_vector_dp = base_vector.repeat(gen_batch, 1)
+        pat_info_vector_tar = torch.tensor(
+            [
+                normalize_patient_value("hr", entry["hr"] + torch.randint(-10, 10, (1,))),
+                normalize_patient_value("age", ecg_ref["label"]["age"] + torch.randint(0, 20, (1,))),
+                normalize_patient_value("sex", sex_to_binary(ecg_ref["label"]["sex"])),
+            ],
+            device=device,
+            dtype=torch.float32,
+        ).unsqueeze(0).repeat(gen_batch, 1)
+
+        text_embed_tar = get_text_embedding(
+            text=entry["text"],
+            tokenizer=runtime["tokenizer"],
+            embedding_model=runtime["embedding_model"],
+            mix=cfg.MODEL.MIX_TEXT,
+        ).unsqueeze(0).repeat(gen_batch, 1, 1)
+
+        latent_gen = ddpm_generation(
+            diffused_model=runtime["scheduler"],
+            noise_predictor=runtime["noise_predictor"],
+            batch_size=gen_batch,
+            device=device,
+            text_embed=text_embed_tar,
+            text_embed_mask=None,
+            pat_info=pat_info_vector_tar,
+            base_vector=ib_vector_dp,
+            progress_bar=False,
+        ).detach().cpu()
+        personal_trainset.extend([{"data": sample, "label": entry["label"]} for sample in latent_gen])
+
+    output_path = Path(task["output_path"])
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(personal_trainset, output_path)
+    (output_path.with_suffix(".json")).write_text(
+        json.dumps({"subject_id": task["subject_id"], "num_samples": len(personal_trainset)}, indent=2),
+        encoding="utf-8",
+    )
+    return {"task_id": task["task_id"], "output_path": str(output_path)}
 
 
 def run(config_path, overrides):
     """Generate subject-specific training samples for pECGMonitor."""
     cfg = load_config(config_path, overrides)
-    device = torch.device(cfg.APPS.PECG_MONITOR.GPU_DEVICE if torch.cuda.is_available() else "cpu")
-    test_dataset = torch.load(resolve_serialized_data_path(cfg, cfg.APPS.PECG_MONITOR.TEST_DATASET_PATH))
-    hyper_params = _hyper_params(cfg)
+    if not getattr(cfg.EXECUTION, "GPU_IDS", []):
+        legacy_gpu = cfg.APPS.PECG_MONITOR.GPU_DEVICE
+        if legacy_gpu.lower().startswith("cuda:"):
+            cfg = cfg.clone()
+            cfg.defrost()
+            cfg.EXECUTION.GPU_IDS = [int(legacy_gpu.split(":", maxsplit=1)[1])]
+            cfg.freeze()
 
-    decoder = VAE_Decoder()
-    checkpoint = torch.load(cfg.CHECKPOINTS.VAE_PATH, map_location=device)
-    decoder.load_state_dict(checkpoint["decoder"])
-    decoder.to(device)
-    decoder.eval()
-
-    ibe_model = IBExtractor(
-        embed_dim=cfg.MODEL.IBE.EMBED_DIM,
-        num_heads=cfg.MODEL.IBE.NUM_HEADS,
-        ff_hidden_size=cfg.MODEL.IBE.FF_HIDDEN_SIZE,
-        num_layers=cfg.MODEL.IBE.NUM_LAYERS,
-        text_embed_dim=cfg.MODEL.IBE.TEXT_EMBED_DIM,
-        patient_info_size=cfg.MODEL.IBE.PATIENT_INFO_SIZE,
-        base_vector_mode=cfg.MODEL.BASE_VECTOR.MODE,
-        base_vector_bottleneck_dim=cfg.MODEL.BASE_VECTOR.BOTTLENECK_DIM,
-    )
-    ibe_model.load_state_dict(torch.load(cfg.CHECKPOINTS.IBE_PATH, map_location=device))
-    ibe_model.to(device)
-    ibe_model.eval()
-
-    noise_predictor = build_noise_predictor(cfg.MODEL.NAME, 4, hyper_params)
-    noise_predictor.load_state_dict(torch.load(cfg.CHECKPOINTS.NOISE_PREDICTOR_PATH, map_location=device))
-    noise_predictor.to(device)
-    noise_predictor.eval()
-
-    diffused_model = build_inference_scheduler(cfg)
-
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    embedding_model = AutoModel.from_pretrained(
-        "nomic-ai/nomic-embed-text-v1.5",
-        trust_remote_code=True,
-        safe_serialization=True,
-    )
-    embedding_model.to(device)
-    embedding_model.eval()
-
-    with open(cfg.APPS.PECG_MONITOR.GENERATION_SOURCE_PATH, "r", encoding="utf-8") as handle:
-        source_file = yaml.safe_load(handle)
-
+    source_entries = load_generation_source_entries(cfg)
     output_dir = Path(cfg.APPS.PECG_MONITOR.OUTPUT_DIR) / cfg.MODEL.NAME
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    with torch.no_grad():
-        for subject_id, ecg_list in test_dataset.items():
-            ecg_ref = ecg_list[0]
-            ref_vector = torch.tensor(
-                [
-                    normalize_patient_value("hr", ecg_ref["label"]["hr"]),
-                    normalize_patient_value("age", ecg_ref["label"]["age"]),
-                    normalize_patient_value("sex", sex_to_binary(ecg_ref["label"]["sex"])),
-                ],
-                device=device,
-                dtype=torch.float32,
-            ).unsqueeze(0)
-
-            text_embed_ref = get_text_embedding(
-                text=ecg_ref["label"]["text"],
-                tokenizer=tokenizer,
-                embedding_model=embedding_model,
-                mix=cfg.MODEL.MIX_TEXT,
-            ).unsqueeze(0)
-
-            ref_latent = ecg_ref["data"].unsqueeze(0).transpose(2, 1).to(device)
-            ib_vector = ibe_model.extract_features(ref_latent, text_embed_ref, None, ref_vector, reduce=True)
-            if cfg.MODEL.BASE_VECTOR.APPLY_AT_INFERENCE:
-                ib_vector = apply_base_vector_ablation(
-                    ib_vector,
-                    mode=cfg.MODEL.BASE_VECTOR.MODE,
-                    noise_std=cfg.MODEL.BASE_VECTOR.NOISE_STD,
-                )
-
-            personal_trainset = []
-            for entry in source_file:
-                gen_batch = 128 if entry["label"] == 0 else 64
-                ib_vector_dp = ib_vector.repeat(gen_batch, 1)
-                pat_info_vector_tar = torch.tensor(
-                    [
-                        normalize_patient_value("hr", entry["hr"] + torch.randint(-10, 10, (1,))),
-                        normalize_patient_value("age", ecg_ref["label"]["age"] + torch.randint(0, 20, (1,))),
-                        normalize_patient_value("sex", sex_to_binary(ecg_ref["label"]["sex"])),
-                    ],
-                    device=device,
-                    dtype=torch.float32,
-                ).unsqueeze(0).repeat(gen_batch, 1)
-
-                text_embed_tar = get_text_embedding(
-                    text=entry["text"],
-                    tokenizer=tokenizer,
-                    embedding_model=embedding_model,
-                    mix=cfg.MODEL.MIX_TEXT,
-                ).unsqueeze(0).repeat(gen_batch, 1, 1)
-
-                latent_gen = ddpm_generation(
-                    diffused_model=diffused_model,
-                    noise_predictor=noise_predictor,
-                    batch_size=gen_batch,
-                    device=device,
-                    text_embed=text_embed_tar,
-                    text_embed_mask=None,
-                    pat_info=pat_info_vector_tar,
-                    base_vector=ib_vector_dp,
-                    progress_bar=True,
-                )
-                latent_gen = latent_gen.detach().cpu()
-                personal_trainset.extend([{"data": sample, "label": entry["label"]} for sample in latent_gen])
-
-            torch.save(personal_trainset, output_dir / f"{subject_id}.pt")
+    summary = run_generation_tasks(
+        cfg,
+        build_pecg_generation_tasks(cfg),
+        scope="pecg",
+        output_root=output_dir,
+        task_handler=lambda task, runtime, run_cfg: write_pecg_generation_task(task, runtime, run_cfg, source_entries),
+    )
+    return {"output_dir": str(output_dir), **summary}

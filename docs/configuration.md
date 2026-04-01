@@ -51,7 +51,23 @@ Architecture and model-family settings:
 - experiment name
 - whether VAE latents are used
 - whether mixed-text conditioning is enabled
-- subtrees for DiT, UNet, IBE, CLIP, and `BASE_VECTOR` personalization controls
+- conditioner selection under `MODEL.CONDITIONER`
+- subtrees for DiT, UNet, FOUNDATION, IBE, CLIP, and `BASE_VECTOR` personalization controls
+
+### `MODEL.CONDITIONER`
+
+Selects the runtime personalization encoder used by diffusion, inference, privacy, and app generation workflows.
+
+### `MODEL.FOUNDATION`
+
+JEPA-style conditioner hyperparameters:
+
+- embedding width and transformer depth
+- text/patient conditioning sizes
+- ECG masking ratio and span
+- predictor width
+- EMA decay for the teacher encoder
+- pooling mode for exported base vectors
 
 ### `MODEL.BASE_VECTOR`
 
@@ -87,6 +103,7 @@ Training-loop parameters:
 
 Known model artifact paths:
 
+- conditioner checkpoint
 - diffusion checkpoint
 - VAE checkpoint
 - IBE checkpoint
@@ -119,6 +136,7 @@ Privacy-audit inputs and attack settings:
 
 ## Config File Layout
 
+- `configs/experiments/foundation/`
 - `configs/experiments/diffusion/`
 - `configs/experiments/ibe/`
 - `configs/experiments/clip/`

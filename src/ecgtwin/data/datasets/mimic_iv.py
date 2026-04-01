@@ -28,6 +28,7 @@ class MIMIC_IV_ECG_Dataset(Dataset):
 
         self.resample_length = resample_length
         self.dataset_path = dataset_path
+        self.missing_record_count = 0
 
         # Use all data
         self.record_list = pd.read_csv(os.path.join(self.dataset_path, 'record_list.csv'), low_memory=False)
@@ -40,6 +41,8 @@ class MIMIC_IV_ECG_Dataset(Dataset):
         with open(exclude_list_path, 'r') as f:
             exclude_list = [eval(x.strip()) for x in f.readlines()]
         self.sheet.drop(exclude_list, inplace=True)
+        self.sheet = self.sheet.reset_index(drop=True)
+        self._drop_incomplete_records()
 
         # split train and test data
         if usage in ['train', 'test']:
@@ -61,6 +64,16 @@ class MIMIC_IV_ECG_Dataset(Dataset):
         self.patient_table = None
         if demo_label:
             self.patient_table = pd.read_csv(patients_csv_path, index_col='subject_id', low_memory=False)
+
+    def _drop_incomplete_records(self):
+        record_paths = self.sheet['path'].astype(str)
+        has_header = record_paths.map(lambda path: os.path.exists(os.path.join(self.dataset_path, f'{path}.hea')))
+        has_signal = record_paths.map(lambda path: os.path.exists(os.path.join(self.dataset_path, f'{path}.dat')))
+        valid_mask = has_header & has_signal
+        self.missing_record_count = int((~valid_mask).sum())
+        if self.missing_record_count:
+            self.sheet = self.sheet.loc[valid_mask].reset_index(drop=True)
+            print(f"Skipping {self.missing_record_count} MIMIC-IV ECG records with missing WFDB files.")
 
 
     # Preprocessing function for waveform data
@@ -119,7 +132,7 @@ class MIMIC_IV_ECG_Dataset(Dataset):
             assert heart_rate is not None
                 
         else:
-            heart_rate = 60.0 / rr_intervals
+            heart_rate = 60.0 / rr_interval
 
         label_dict = {
                 'text': text, 

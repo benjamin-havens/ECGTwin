@@ -28,6 +28,12 @@ Train the diffusion model:
 ecgtwin train-diffusion --config configs/experiments/diffusion/dit_ecgtwin.yaml
 ```
 
+Train the JEPA-style foundation conditioner:
+
+```sh
+ecgtwin train-foundation --config configs/experiments/foundation/base.yaml
+```
+
 Run inference:
 
 ```sh

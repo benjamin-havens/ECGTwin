@@ -4,6 +4,7 @@ Configuration files are organized by supported workflow rather than by implement
 
 ## Structure
 
+- `experiments/foundation/`: JEPA-style conditioner training presets
 - `experiments/diffusion/`: diffusion model training and inference presets
 - `experiments/ibe/`: IBE training presets
 - `experiments/clip/`: CLIP training presets

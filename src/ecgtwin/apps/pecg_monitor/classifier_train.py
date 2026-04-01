@@ -1,11 +1,11 @@
 """Training workflow for the pECGMonitor classifier."""
 
+import json
 from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import auc, confusion_matrix, f1_score, roc_curve
 from torch.utils.data import DataLoader
 
 from ecgtwin.apps.pecg_monitor.classifier import ResNetECG
@@ -13,6 +13,29 @@ from ecgtwin.config import load_config, resolve_serialized_data_path
 from ecgtwin.core.logging import configure_logger
 from ecgtwin.data.datasets import ListDataset
 from ecgtwin.models.vae_model import VAE_Decoder
+from ecgtwin.privacy.metrics import auc, roc_curve
+
+
+def confusion_matrix(y_true, y_pred):
+    """Compute a binary confusion matrix without scikit-learn."""
+    matrix = np.zeros((2, 2), dtype=int)
+    for truth, pred in zip(y_true, y_pred, strict=True):
+        matrix[int(truth)][int(pred)] += 1
+    return matrix
+
+
+def macro_f1_score(y_true, y_pred):
+    """Compute binary macro F1 without third-party metrics packages."""
+    cm = confusion_matrix(y_true, y_pred)
+    f1_scores = []
+    for label in (0, 1):
+        tp = cm[label][label]
+        fp = cm[1 - label][label]
+        fn = cm[label][1 - label]
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1_scores.append(2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0)
+    return float(sum(f1_scores) / len(f1_scores))
 
 
 def train_batch(ecgs, labels, model, criterion, optimizer):
@@ -104,8 +127,8 @@ def test_loop(dataloader, model, device, decoder):
     acc = np.sum(np.equal(all_pred, all_label)) / size
     cm = confusion_matrix(all_label, all_pred)
     _, _, weighted_f1 = weighted_f1_score_from_confusion_matrix(cm)
-    f1 = f1_score(all_label, all_pred, average="macro")
-    fpr, tpr, _ = roc_curve(all_label, all_score, pos_label=0)
+    f1 = macro_f1_score(all_label, all_pred)
+    fpr, tpr, _ = roc_curve([1 - int(label) for label in all_label], [float(score) for score in all_score])
     roc_auc = auc(fpr, tpr)
     return acc, f1, weighted_f1, roc_auc, cm, all_score, all_label
 
@@ -167,5 +190,8 @@ def run(config_path, overrides):
     np.save(save_dir / "cm.npy", cm)
     np.save(save_dir / "all_score.npy", all_score)
     np.save(save_dir / "all_label.npy", all_label)
+    metrics = {"accuracy": float(acc), "macro_f1": float(f1), "weighted_f1": float(weighted_f1), "auroc": float(roc_auc)}
+    (save_dir / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     logger.info("%s\t%s\n%s\t%s", cm[0][0], cm[0][1], cm[1][0], cm[1][1])
     logger.info("Acc: %.3f Macro F1: %.3f Weighted F1: %.3f AUROC: %.3f", acc, f1, weighted_f1, roc_auc)
+    return {"save_dir": str(save_dir), "checkpoint_path": str(best_path), "metrics_path": str(save_dir / "metrics.json")}

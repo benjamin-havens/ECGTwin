@@ -51,4 +51,12 @@ def run(config_path, overrides):
     vae_weight_dict = torch.load(cfg.CHECKPOINTS.VAE_PATH, map_location=device)
     encoder = VAE_Encoder()
     encoder.load_state_dict(vae_weight_dict["encoder"])
-    encode_dataset_to_latent_and_cleaning(dataset, encoder, Path(cfg.PATHS.OUTPUT_DIR), device)
+    output_dir = Path(cfg.PATHS.OUTPUT_DIR)
+    kept, excluded = encode_dataset_to_latent_and_cleaning(dataset, encoder, output_dir, device)
+    return {
+        "output_dir": str(output_dir),
+        "dataset_path": str(output_dir / "Mimic_vae.pt"),
+        "lite_dataset_path": str(output_dir / "Mimic_vae_lite.pt"),
+        "records_kept": kept,
+        "records_excluded": excluded,
+    }

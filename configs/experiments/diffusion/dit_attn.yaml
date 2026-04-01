@@ -10,6 +10,8 @@ MODEL:
   DESCRIPTION: "DiT attention baseline"
   USE_VAE_LATENT: true
   MIX_TEXT: false
+  CONDITIONER:
+    TYPE: "foundation_jepa"
   DIT:
     HIDDEN_SIZE: 256
     DEPTH: 7
@@ -39,7 +41,7 @@ TRAIN:
 CHECKPOINTS:
   NOISE_PREDICTOR_PATH: "checkpoints/DiT_ATTN_1/DiT_ATTN_best.pth"
   VAE_PATH: "checkpoints/vae_model.pth"
-  IBE_PATH: "checkpoints/ibe_model.pth"
+  CONDITIONER_PATH: "checkpoints/conditioner_best.pth"
 
 INFERENCE:
   SAVE_SAMPLE_PATH: "test_samples"

@@ -7,17 +7,20 @@ from contextlib import nullcontext
 
 import torch
 
+from ecgtwin.evaluation.runtime import load_generation_runtime
 from ecgtwin.inference.generation import ddpm_generation
 from ecgtwin.inference.scheduler import build_inference_scheduler
 from ecgtwin.models.base_vector import apply_base_vector_ablation
+from ecgtwin.models.conditioner import conditioner_hparams, load_conditioner
 from ecgtwin.models.factory import build_noise_predictor
-from ecgtwin.models.ib_extractor import IBExtractor
+from ecgtwin.privacy.data import load_records, record_cache_key_from_record, record_id_from_record
 
 from .features import sample_latent_batch, sample_patient_tensor, sample_text_tensors
 
 
 def _hyper_params(cfg):
     """Translate the config tree into the model-factory hyperparameter format."""
+    conditioner = conditioner_hparams(cfg)
     return {
         "ddpm": {
             "num_train_steps": cfg.DIFFUSION.NUM_TRAIN_STEPS,
@@ -36,13 +39,10 @@ def _hyper_params(cfg):
             "n_heads": cfg.MODEL.UNET.N_HEADS,
             "patient_info_size": cfg.MODEL.UNET.PATIENT_INFO_SIZE,
         },
-        "ibe": {
-            "embed_dim": cfg.MODEL.IBE.EMBED_DIM,
-            "num_heads": cfg.MODEL.IBE.NUM_HEADS,
-            "ff_hidden_size": cfg.MODEL.IBE.FF_HIDDEN_SIZE,
-            "num_layers": cfg.MODEL.IBE.NUM_LAYERS,
-            "text_embed_dim": cfg.MODEL.IBE.TEXT_EMBED_DIM,
-            "patient_info_size": cfg.MODEL.IBE.PATIENT_INFO_SIZE,
+        "conditioner": {
+            "embed_dim": conditioner["embed_dim"],
+            "text_embed_dim": conditioner["text_embed_dim"],
+            "patient_info_size": conditioner["patient_info_size"],
         },
     }
 
@@ -51,36 +51,12 @@ def load_privacy_runtime(cfg):
     """Load the trained ECGTwin components needed for privacy scoring."""
     if not cfg.MODEL.USE_VAE_LATENT:
         raise NotImplementedError("Privacy-audit generation currently supports VAE-latent ECGTwin checkpoints only")
-
-    device = torch.device(cfg.SYSTEM.DEVICE if torch.cuda.is_available() else "cpu")
-    hyper_params = _hyper_params(cfg)
-
-    noise_predictor = build_noise_predictor(cfg.MODEL.NAME, 4, hyper_params)
-    noise_predictor.load_state_dict(torch.load(cfg.CHECKPOINTS.NOISE_PREDICTOR_PATH, map_location="cpu"))
-    noise_predictor.to(device)
-    noise_predictor.eval()
-
-    diffused_model = build_inference_scheduler(cfg)
-
-    ibe_model = IBExtractor(
-        embed_dim=cfg.MODEL.IBE.EMBED_DIM,
-        num_heads=cfg.MODEL.IBE.NUM_HEADS,
-        ff_hidden_size=cfg.MODEL.IBE.FF_HIDDEN_SIZE,
-        num_layers=cfg.MODEL.IBE.NUM_LAYERS,
-        text_embed_dim=cfg.MODEL.IBE.TEXT_EMBED_DIM,
-        patient_info_size=cfg.MODEL.IBE.PATIENT_INFO_SIZE,
-        base_vector_mode=cfg.MODEL.BASE_VECTOR.MODE,
-        base_vector_bottleneck_dim=cfg.MODEL.BASE_VECTOR.BOTTLENECK_DIM,
-    )
-    ibe_model.load_state_dict(torch.load(cfg.CHECKPOINTS.IBE_PATH, map_location="cpu"))
-    ibe_model.to(device)
-    ibe_model.eval()
-
+    runtime = load_generation_runtime(cfg, include_decoder=False, include_text_encoder=False)
     return {
-        "device": device,
-        "noise_predictor": noise_predictor,
-        "diffused_model": diffused_model,
-        "ibe_model": ibe_model,
+        "device": runtime["device"],
+        "noise_predictor": runtime["noise_predictor"],
+        "diffused_model": runtime["scheduler"],
+        "conditioner": runtime["conditioner"],
     }
 
 
@@ -103,7 +79,7 @@ def generate_synthetic_latents(sample: dict, runtime: dict, cfg, num_samples: in
             ref_latent = sample_latent_batch(sample, device, repeat=current_batch).transpose(2, 1)
             ref_text, ref_mask = sample_text_tensors(sample, device, repeat=current_batch)
             ref_pat = sample_patient_tensor(sample, device, repeat=current_batch)
-            base_vector = runtime["ibe_model"].extract_features(ref_latent, ref_text, ref_mask, ref_pat, reduce=True)
+            base_vector = runtime["conditioner"].extract_features(ref_latent, ref_text, ref_mask, ref_pat, reduce=True)
             base_vector = apply_base_vector_ablation(
                 base_vector,
                 mode=cfg.MODEL.BASE_VECTOR.MODE,
@@ -148,3 +124,43 @@ def save_synthetic_pool(
         },
         output_path,
     )
+
+
+def build_privacy_generation_tasks(subject_tasks: list[dict], synthetic_root: Path) -> list[dict]:
+    """Build one generation task per record for the shared Lightning executor."""
+    dataset_cache: dict[str, list[dict]] = {}
+    tasks = []
+    for subject_task in subject_tasks:
+        dataset_path = subject_task["dataset_path"]
+        if dataset_path not in dataset_cache:
+            dataset_cache[dataset_path] = load_records(dataset_path, mmap=False)
+        records = dataset_cache[dataset_path]
+        for record_index in subject_task["record_indices"]:
+            record = records[record_index]
+            record_id = record_id_from_record(record)
+            cache_key = record_cache_key_from_record(record)
+            tasks.append(
+                {
+                    "task_id": cache_key,
+                    "sample": record,
+                    "subset": subject_task["subset"],
+                    "record_id": record_id,
+                    "cache_key": cache_key,
+                    "output_path": str(synthetic_root / subject_task["subset"] / f"{cache_key}.pt"),
+                }
+            )
+    return tasks
+
+
+def write_privacy_generation_task(task: dict, runtime: dict, cfg) -> dict:
+    """Generate and persist one synthetic latent pool."""
+    latents = generate_synthetic_latents(task["sample"], runtime, cfg)
+    save_synthetic_pool(
+        Path(task["output_path"]),
+        task["sample"],
+        task["record_id"],
+        task["cache_key"],
+        task["subset"],
+        latents,
+    )
+    return {"task_id": task["task_id"], "output_path": task["output_path"]}
